@@ -1,0 +1,1175 @@
+# ksat_2026_english
+
+- 원본: C:\Users\fall2\work\mp3_study_app\data\ksat_2026_english.mp3
+- 모델: whisper-small (cpu)
+- 번역: nllb
+- 길이: 22:36
+- 생성: 2026-11-03 00:41:08
+
+---
+
+## 1번
+
+**[00:00]** (한국어) 밤을 듣고, 남자가 하는 말의 목적으로 가장 적절한 것을 고르시어요.
+
+**[00:09]** Hello, viewers.
+
+> 안녕하세요 시청자님
+
+**[00:10]** It's Ryan.
+
+> 라이언이야
+
+**[00:11]** Welcome back to Only for Health Channel.
+
+> 건강만 채널에 오신 것을 환영합니다.
+
+**[00:15]** Do you want to have good sleep?
+
+> 잘 자고 싶니?
+
+**[00:17]** Then the app Nightly Journey is perfect for you.
+
+> 그럼 나이트리 여행 앱은 당신을 위해 완벽합니다.
+
+**[00:21]** This app provides a variety of aids that help you sleep well, such as calming sounds, peaceful and quiet music and bedtime stories.
+
+> 이 앱은 진정성 있는 소리, 조용하고 조용한 음악, 그리고 잠자리에 들기 전 이야기 등 다양한 도움을 줍니다.
+
+**[00:31]** It also offers audio exercises that teach you how to breathe in order to sleep better.
+
+> 또한, 더 잘 수면하기 위해 숨을 쉬는 법을 가르치는 오디오 운동도 제공합니다.
+
+**[00:38]** Next time when you go to bed, consider nightly journey.
+
+> 다음번에 잠자리에 들면 밤새 여행을 생각해보세요.
+
+**[00:42]** Then you'll wake up feeling refreshed the next morning.
+
+> 다음 날 아침, 당신은 신선한 느낌으로 깨어날 것입니다.
+
+**[00:46]** Why don't you try this app and get some good sleep tonight?
+
+> 어서 이 앱을 사용해 보시고 잘 자세요?
+
+**[00:50]** Thank you for watching.
+
+> 지켜주셔서 감사합니다
+
+## 2번
+
+**[01:08]** (한국어) 이번 대화를 듣고 여자의 의견으로 가장 적절한 것을 고르시해요.
+
+**[01:18]** How's it going, Liam?
+
+> 어떻게 됐어 리암?
+
+**[01:20]** Good, Emily.
+
+> 잘했어 에밀리
+
+**[01:21]** Are you about to go indoor rock climbing like you do every weekend?
+
+> 주말마다처럼 실내에서 돌고래를 하려고?
+
+**[01:25]** I am.
+
+> - 그래요
+
+**[01:27]** Do you want to try it too?
+
+> 너도 시도하고 싶니?
+
+**[01:29]** Maybe, but I wonder why you enjoy it so much.
+
+> 어쩌면, 하지만 왜 그렇게 즐겨가는지 궁금합니다.
+
+**[01:33]** I think indoor rock climbing helps improve problem solving skills.
+
+> 저는 실내에서 바위 등반이 문제 해결 능력을 향상시키는 데 도움이 된다고 생각합니다.
+
+**[01:38]** Really?
+
+> - 정말?
+
+**[01:38]** How so?
+
+> 어떻게 그렇게 했습니까?
+
+**[01:40]** You use strategic thinking to solve the problem of getting to the top.
+
+> 당신은 전략적 사고를 사용하여 정상에 도달하는 문제를 해결합니다.
+
+**[01:45]** That means you have to strategically plan the holds to grab.
+
+> 즉, 잡기 위해 전략적으로 기획해야 한다는 뜻입니다.
+
+**[01:49]** Hmm, I can see that.
+
+> - 그래, 알겠어
+
+**[01:51]** What if the plan doesn't work though?
+
+> 하지만 계획이 안 풀리면?
+
+**[01:53]** You have to adapt your plan while climbing.
+
+> 등반을 할 때 계획을 조정해야 합니다.
+
+**[01:56]** It makes you better at adjusting to new information.
+
+> 새로운 정보에 적응하는 데 더 잘 적응할 수 있게 해줍니다.
+
+**[02:00]** That's the basics of solving problems.
+
+> 문제 해결의 기본은 바로 그것입니다.
+
+**[02:03]** That makes sense.
+
+> 그게 말이에요
+
+**[02:04]** Yeah, I'm sure your problem-solving skills will improve if you go indoor rock climbing.
+
+> 네, 내실 락 등반을 하면 문제 해결 능력이 좋아질 거야
+
+**[02:10]** Okay, I'll try it.
+
+> 좋아, 시도해볼게요
+
+## 3번
+
+**[02:30]** (한국어) 다음을 듣고 남자가 하는 말의 요지로 가장 적절한 것을 고르시 여.
+
+**[02:39]** Good afternoon, students.
+
+> 안녕하세요, 학생들
+
+**[02:41]** I'm Mr. Flynn, your school counselor.
+
+> 플린 씨입니다. 학교 상담자입니다.
+
+**[02:44]** If you become anxious when facing an important job interview or presentation, I have a useful tip for you.
+
+> 중요한 취업 면접이나 발표를 당할 때 불안해지면,
+
+**[02:51]** Making a big pose can relieve your anxiety.
+
+> 큰 자세를 취하면 불안을 덜 수 있습니다.
+
+**[02:55]** For example, you can stretch out your arms in a V shape and hold that pose.
+
+> 예를 들어, V 모양의 팔을 뻗어 그 자세를 유지할 수 있습니다.
+
+**[03:00]** Also, you could make a big pose as your favorite superhero does in the movies.
+
+> 또한, 당신이 좋아하는 슈퍼히어로처럼 영화에서 큰 자세를 할 수도 있습니다.
+
+**[03:06]** When you make a big pose, you'll occupy more space.
+
+> 큰 자세를 할 때 더 많은 공간을 차지할 겁니다.
+
+**[03:10]** Then, your body will send a message to your brain saying that you're powerful, which will ease your anxiety.
+
+> 그러면, 여러분의 몸은 여러분의 뇌에 강하다는 메시지를 보내며, 여러분의 불안을 완화시킬 것입니다.
+
+**[03:18]** Next time you want to feel less anxious, try to make a big pose.
+
+> 다음번 불안감을 덜 느끼려면 큰 자세를 취해 보세요.
+
+## 4번
+
+**[03:38]** (한국어) 대화를 듣고 그림에서 대화의 내용과 일치하지 않는 것을 고르시여.
+
+**[03:49]** Mr. Howard, how was your family trip to Compton Railway Museum over the weekend?
+
+> 하워드 씨, 주말에 컴튼 철도 박물관으로 가는 가족 여행은 어떠셨나요?
+
+**[03:55]** It was great, Ms. Joyce.
+
+> 훌륭했어요, 조이스 부인
+
+**[03:57]** Here's a photo.
+
+> 여기 사진이 있습니다.
+
+**[03:58]** Let me see.
+
+> - 보여줘
+
+**[04:00]** Wow, there's a train on the rails.
+
+> 와우, 철도 위에 열차가 있어요.
+
+**[04:03]** Yeah.
+
+> - 그래, 그래
+
+**[04:04]** Do you see the boy wearing a heart-patterned t-shirt next to the train?
+
+> 기차 옆에 심장 패턴을 가진 티셔츠를 입은 소년을 보셨나요?
+
+**[04:09]** He looks so lovely.
+
+> 정말 사랑스러운 사람
+
+**[04:11]** Is he your son?
+
+> 네 아들이야?
+
+**[04:13]** He is.
+
+> - 그래요
+
+**[04:14]** We took a walk through the museum.
+
+> 우리는 박물관을 돌아보았습니다.
+
+**[04:16]** It was really good.
+
+> 정말 좋았어요
+
+**[04:18]** I can see.
+
+> - 알 수 있어
+
+**[04:19]** Oh, there's a bench in front of the shop window.
+
+> 창문 앞에 벤치가 있어요
+
+**[04:23]** It looks nice.
+
+> 잘 생겼어
+
+**[04:24]** Did you get anything from the shop?
+
+> 가게에서 뭐라도 얻었나?
+
+**[04:27]** Yes.
+
+> - 그래, 그래
+
+**[04:28]** Look at the flower-shaped doormat on the ground.
+
+> 바닥에 있는 꽃 모양의 문 매트를 보세요.
+
+**[04:31]** I bought one like that.
+
+> 그런 걸 샀어요
+
+**[04:33]** It's so cute.
+
+> 너무 귀여워요
+
+**[04:35]** The three chairs around the table look convenient.
+
+> 테이블 주위에 있는 세 개의 의자는 편리하게 보입니다.
+
+**[04:38]** Did you take a break there?
+
+> 잠깐 쉬었나?
+
+**[04:40]** We did.
+
+> - 그래요
+
+**[04:40]** The museum seems worth visiting.
+
+> 박물관은 방문할 가치가 있는 것 같습니다.
+
+**[04:44]** I'll have to go there.
+
+> 내가 가야 돼
+
+**[04:45]** Thank you.
+
+> - 고마워요
+
+## 5번
+
+**[05:01]** (한국어) 대화를 듣고, 여자가 할 일로 가장 적절한 것을 고르시해요.
+
+**[05:09]** Honey, I'm excited that we're opening our homemade pie store tomorrow.
+
+> 내년엔 집에서 만든 케이크 가게를 열게 되어 흥분됐어요
+
+**[05:14]** Me too.
+
+> 나도 그랬어
+
+**[05:15]** Do you think everything's ready?
+
+> 모든 게 준비됐다고 생각하십니까?
+
+**[05:17]** I do, but let's go over what we've done.
+
+> 그래, 하지만 우리가 한 일을 다시 생각해보자.
+
+**[05:21]** Good idea.
+
+> 좋은 생각이야
+
+**[05:22]** I completed the product list for sale.
+
+> 판매 상품 목록을 작성했습니다.
+
+**[05:25]** Did you take photos of the pies?
+
+> 케이크 사진 찍었나?
+
+**[05:27]** I took photos of the walnut, pumpkin, blueberry, and apple pies.
+
+> 저는 견과류, , 블루베리, 사과파이를 찍었습니다.
+
+**[05:32]** Perfect.
+
+> - 완벽해
+
+**[05:34]** What about uploading information onto social media?
+
+> 소셜 미디어에 정보를 업로드하는 게 어떨까요?
+
+**[05:38]** Don't worry.
+
+> 걱정 마
+
+**[05:39]** I advertised our pies on social media.
+
+> 소셜 미디어에서 당운을 광고했습니다.
+
+**[05:42]** I hope it brings in a lot of customers.
+
+> 많은 고객을 불러올 수 있기를 바랍니다.
+
+**[05:45]** I also prepared forks and plates for customers on our opening day.
+
+> 또한 개막 날 고객들을 위한 갈고리와 접시를 준비했습니다.
+
+**[05:50]** One more thing.
+
+> 한 가지 더 해
+
+**[05:51]** Don't forget to confirm the delivery of the ingredients for making more pies.
+
+> 더 많은 케이크를 만들기 위해 재료의 배달을 확인하는 것을 잊지 마십시오.
+
+**[05:56]** Right.
+
+> - 그래, 그래
+
+**[05:57]** I'll do that this afternoon.
+
+> 오늘 오후에 할게요
+
+**[05:59]** Wonderful.
+
+> - 정말 멋지네요
+
+**[06:00]** See?
+
+> - 아뇨
+
+**[06:01]** We're ready for tomorrow.
+
+> 내일 준비됐어
+
+## 6번
+
+**[06:18]** (한국어) 대화를 듣고, 남자가 지부러의 금액을 고르시여.
+
+**[06:29]** winter land mart.
+
+> 겨울 랜드 마트
+
+**[06:30]** How may I help you?
+
+> 어떻게 도와드릴까요?
+
+**[06:32]** Hi, I'm shopping for an electric heater.
+
+> 안녕하세요, 전력 가열기를 사려고 합니다.
+
+**[06:35]** How about this type?
+
+> 이 녀석은 어때?
+
+**[06:37]** It's very popular.
+
+> 아주 인기 있는 것 같아요
+
+**[06:39]** Let me see.
+
+> - 보여줘
+
+**[06:40]** Oh, I like it.
+
+> 좋아, 좋아
+
+**[06:42]** Well, we have it in three sizes.
+
+> 세 가지 크기로 만들어졌습니다.
+
+**[06:44]** The small one is $50, the medium is $70, and the large is $100.
+
+> 작은 것은 50달러, 중형은 70달러, 큰 것은 100달러.
+
+**[06:50]** I'll take one medium-sized heater.
+
+> 중형 가열기를 가져갈게요
+
+**[06:54]** Do you also have slippers?
+
+> 신발도 가지고 있나요?
+
+**[06:55]** Yes, we have wool and leather ones.
+
+> 네, 우리는 털과 가죽을 가지고 있습니다.
+
+**[06:59]** A pair of wool slippers is $5 and a pair of leather ones is $10.
+
+> 양털 신발은 5달러이고 가죽 신발은 10달러입니다.
+
+**[07:06]** Hmm, I'll take two pairs of leather ones.
+
+> 두 쌍의 가죽을 가져갈게요
+
+**[07:09]** Great.
+
+> - 잘했어
+
+**[07:10]** So, one medium-sized electric heater and two pairs of leather slippers.
+
+> 한 장의 중형 전기 가열기와 두 쌍의 가죽 신발
+
+**[07:16]** Is that correct?
+
+> 맞나요?
+
+**[07:17]** Yes, that's right.
+
+> 그래, 맞아요
+
+**[07:19]** Can I use this 10% off coupon?
+
+> 10% 할인 할 수 있나요?
+
+**[07:22]** I'll check.
+
+> 확인해 보겠습니다
+
+**[07:23]** Oh, I'm sorry.
+
+> 미안해
+
+**[07:25]** You cannot use this coupon because it isn't valid anymore.
+
+> 이 쿠폰은 더 이상 유효하지 않기 때문에 사용할 수 없습니다.
+
+**[07:29]** That's okay.
+
+> 괜찮아
+
+**[07:30]** Here's my credit card.
+
+> 내 신용카드
+
+## 7번
+
+**[07:49]** 대화를 듣고, 여자가 Morning Tea Club에 참석할 수 없는 이유를 고르시 Good morning, Miss Lee.
+
+> 대화 듣고, 여자 아침 차 클럽에 참석할 수 없는 이유 고르시 안녕하세요, 리씨.
+
+**[08:02]** Are you heading to Morning Tea Club?
+
+> 아침 차 클럽으로 가고 있는 거야?
+
+**[08:04]** Not today, Mr. Thompson.
+
+> 오늘은 아니죠, 톰슨 씨
+
+**[08:06]** I can't attend it this time.
+
+> 이번엔 참석할 수 없어요
+
+**[08:08]** Really?
+
+> - 정말?
+
+**[08:09]** But you enjoy starting the work day by drinking tea with coworkers.
+
+> 하지만 직장 동료들과 함께 차를 마시고 일일이 시작되는 것을 즐겨요.
+
+**[08:14]** Did you forget to bring your tea?
+
+> 차 가져오지 안 안 왔나?
+
+**[08:17]** No, I always keep it in my bag.
+
+> 아니, 항상 가방에 보관해요
+
+**[08:20]** Are you just too tired this morning because you worked late last night?
+
+> 어제 밤 늦게 일해서 너무 피곤해?
+
+**[08:24]** Not at all.
+
+> - 아뇨
+
+**[08:25]** I feel fine, just like usual.
+
+> 평소처럼 괜찮아
+
+**[08:27]** Then has your doctor told you not to drink too much tea?
+
+> 그럼 의사가 너무 많은 차를 마시지 말라고 했나요?
+
+**[08:33]** No. My doctor actually encourages me to drink tea.
+
+> 아니, 내 의사가 실제로 차를 마시라고 권하고 있어요.
+
+**[08:37]** He says it's good for my health.
+
+> 내 건강에 좋다고 합니다.
+
+**[08:39]** Oh, I see.
+
+> 아, 이해해
+
+**[08:41]** Something else must have come up then.
+
+> 그 때 다른 게 나왔을 거야
+
+**[08:43]** Yes.
+
+> - 그래, 그래
+
+**[08:44]** I have an early business meeting that overlaps with the tea club.
+
+> 차 클럽과 접어들게 되는 초기 업무 모임이 있어요
+
+**[08:48]** That's too bad.
+
+> 너무 미안해
+
+**[08:49]** I hope your meeting goes well.
+
+> 회의가 잘 진행되길 바랍니다.
+
+**[08:51]** Thank you for watching.
+
+> 지켜주셔서 감사합니다
+
+## 8번
+
+**[09:09]** After hearing the conversation, choose not to mention the item treasure hunt event.
+
+> 대화를 듣고 나서, 물건 보물 사냥 사건에 대해 언급하지 않기로 결정하십시오.
+
+**[09:19]** Hey Nathan, have you heard of the Autumn Treasure Hunt event that is coming soon?
+
+> 네이튼, 곧 열리는 가을 보물 사냥 행사에 대해 들어보셨나요?
+
+**[09:23]** Autumn Treasure Hunt?
+
+> 가을 보물 사냥?
+
+**[09:25]** That's interesting.
+
+> 흥미롭네요
+
+**[09:27]** Where will it take place?
+
+> 그 행사는 어디 열릴까요?
+
+**[09:29]** It'll be held in Pine Nut Park.
+
+> 파인넛 파크에서 열릴 겁니다.
+
+**[09:31]** Participants can search for hidden treasure there.
+
+> 참가자들은 숨겨진 보물을 찾을 수 있습니다.
+
+**[09:34]** Sounds fun.
+
+> 재밌는 소리야
+
+**[09:35]** You know I'm a great treasure hunter.
+
+> 넌 내가 훌륭한 보물 사냥꾼인 줄 알아
+
+**[09:37]** When is it?
+
+> 언제?
+
+**[09:39]** It's this Saturday, November 22nd.
+
+> 11월 22일 토요일입니다.
+
+**[09:42]** Perfect.
+
+> - 완벽해
+
+**[09:42]** I'm free that day.
+
+> 그날은 내가 자유롭다.
+
+**[09:44]** There must be a big prize for the winner.
+
+> 우승자에게 큰 상이 있을 겁니다.
+
+**[09:47]** Do you know what it is?
+
+> 그게 뭔지 아세요?
+
+**[09:48]** Yeah, if you collect the most treasure, you'll get a gift card worth $100 as a reward.
+
+> 네, 가장 많은 보물을 수집하면 100달러짜리 선물 카드를 보상으로 받을 거야
+
+**[09:55]** Wow, that's a big prize!
+
+> 와우, 큰 상이야!
+
+**[09:57]** How can I sign up for the Autumn Treasure Hunt event?
+
+> 어떻게 하계 보물 사냥에 등록할 수 있을까요?
+
+**[10:00]** You can visit its website and register online.
+
+> 웹사이트를 방문하고 온라인에 등록할 수 있습니다.
+
+**[10:04]** Awesome!
+
+> 정말 멋지네요
+
+**[10:05]** Let's go there together!
+
+> 같이 가자!
+
+**[10:06]** That'd be great!
+
+> 정말 멋지겠지!
+
+## 9번
+
+**[10:25]** Listen to the next content about the 2025 CURT VIZIT program and choose not to lose it.
+
+> 2025 CURT VIZIT 프로그램에 대한 다음 내용을 들어보세요.
+
+**[10:36]** Hello, listeners.
+
+> 안녕하세요, 청취자 여러분.
+
+**[10:37]** This is Lisa Cooperson from Lever and Radio Station.
+
+> 리버 라디오 방송국 리사 쿠퍼슨입니다
+
+**[10:41]** Are you considering a career related to law, the 2025 Court Visit Program will be held on November 19th at Woodfield County Courthouse.
+
+> 법과 관련된 경력을 고려하고 있다면, 2025 법원 방문 프로그램은 11월 19일 伍드필드 카운티 법원에서 열릴 것입니다.
+
+**[10:52]** It allows high school students to experience working in law.
+
+> 고등학교 학생들이 법학 분야에서 경험을 할 수 있도록 합니다.
+
+**[10:56]** This program offers an opportunity to meet with judges and lawyers and learn what happens in court.
+
+> 이 프로그램은 판사와 변호사들과 만나 법정에서 일어나는 일을 배울 수 있는 기회를 제공합니다.
+
+**[11:04]** Its activities include a trial role play.
+
+> 그 활동에는 시험 역할 플레이가 포함됩니다.
+
+**[11:07]** Also, the program gives participants a certificate that shows completion of the program.
+
+> 또한, 프로그램에 참여하는 사람들에게는 프로그램을 완료한 것을 보여주는 자격증을 제공합니다.
+
+**[11:13]** To join, you must apply as a team, not as an individual.
+
+> 가입하려면 팀으로 신청해야 합니다. 개인으로 신청하지 않습니다.
+
+**[11:18]** Applications should be submitted to the courthouse by the end of this week.
+
+> 이 주 말까지 법원에 신청서를 제출해야 합니다.
+
+**[11:23]** Lastly, the program includes a free lunch, so you won't need to bring your own.
+
+> 마지막으로, 프로그램에는 무료 점심도 포함되어 있습니다. 그래서 당신은 당신의 음식을 가져오지 않아도 될 것입니다.
+
+**[11:29]** Don't miss this wonderful opportunity!
+
+> 이 멋진 기회를 놓치지 마세요!
+
+**[11:31]** Thank you.
+
+> - 고마워요
+
+## 10번
+
+**[11:48]** (한국어) 다음 표를 보면서 대화를 듣고 남자가 구입할 버터 나이프 세트를 고르시 Hey Madeline,
+
+**[12:00]** can you help me?
+
+> 도와줄 수 있어?
+
+**[12:01]** Sure Kevin, what is it?
+
+> 물론 케빈, 무슨 일이야?
+
+**[12:03]** I'm looking for a butter knife set for my family.
+
+> 가족들을 위한 버터 칼 세트를 찾고 있어요.
+
+**[12:07]** Among these five best selling sets, which would you recommend?
+
+> 이 다섯 장 중 어느 장을 추천하시겠습니까?
+
+**[12:11]** If I were you, I wouldn't spend more than ten dollars.
+
+> 내가 당신이라면 10달러 이상 지출하지 않을 겁니다.
+
+**[12:15]** That's too expensive.
+
+> 너무 비싸지
+
+**[12:16]** You're right.
+
+> - 네, 맞아요
+
+**[12:17]** What about the handle material?
+
+> 손잡이의 재료는 어때?
+
+**[12:19]** I don't recommend a wood handle because it's harder to wash.
+
+> 목재 손잡이를 추천하지 않습니다. 목말은 씻기 힘들기 때문입니다.
+
+**[12:24]** That's a good point.
+
+> - 좋은 말야
+
+**[12:25]** Next is the number of knives.
+
+> 다음으로 칼의 숫자가 있습니다.
+
+**[12:28]** Well, each person in your family needs their own knife.
+
+> 네 가족들 모두 자기 칼이 필요해요
+
+**[12:32]** There's my wife, my son, and me.
+
+> 내 아내와 아들, 그리고 나.
+
+**[12:35]** That means I'll need at least three knives.
+
+> 적어도 3개의 칼이 필요하겠죠
+
+**[12:37]** That leaves two options.
+
+> 두 가지 선택지가 남습니다.
+
+**[12:39]** I guess you'll need a gift box.
+
+> 선물 상자가 필요하겠군요
+
+**[12:41]** No, my wife doesn't like packaging waste.
+
+> 아니, 제 아내는 포장 쓰레기를 좋아하지 않아요.
+
+**[12:45]** That's good.
+
+> - 잘 됐어
+
+**[12:46]** Then you've made your decision.
+
+> 그럼 당신은 결정을 내렸어요.
+
+**[12:47]** Yes, I'll buy this set.
+
+> 네, 이 세트를 사게 될 거야
+
+**[12:49]** Thanks for your help.
+
+> 도움 감사합니다
+
+## 11번
+
+**[13:05]** (한국어) 대화를 듣고 여자의 마지막 말에 대한 남자의 응답으로 가장 적절한 것을 고르시어.
+
+**[13:21]** Hello Tony, I'm driving now to pick up my daughter for the first time.
+
+> 안녕하세요 토니, 저는 딸을 처음으로 데려가려고 운전중입니다.
+
+**[13:25]** from your place, but I'm going to be late.
+
+> 당신 집에서 왔지만 늦을 거야
+
+**[13:28]** Well, your daughter is having fun with my kids now, but my family does have to leave in 30 minutes.
+
+> 네 딸은 지금 내 아이들과 함께 재미있게 놀고 있지만 내 가족은 30분 안에 떠나야 합니다.
+
+**[13:34]** When do you think you can make it here?
+
+> 언제 올 것 같니?
+
+**[13:37]** By car, I'll get there in 10 minutes.
+
+> 차로 10분 안에 도착할게요
+
+**[13:40]** Can you watch her until I arrive?
+
+> 내가 도착할 때까지 그녀를 지켜줄 수 있어?
+
+## 12번
+
+**[14:01]** (한국어) 대화를 듣고 남자의 마지막 말에 대한 여자의 응답으로 가장 적절한 것을 고르시여.
+
+**[14:11]** Jenny, have you responded to the survey on where to go for our school trip?
+
+> 제니, 학교 여행에 갈 곳을 묻는 설문조사에 응답했나요?
+
+**[14:17]** Not yet, Jamie.
+
+> 아직은 아니 미
+
+**[14:19]** Both places look good, so I'll go with whichever place has a direct bus from our town.
+
+> 두 곳 모두 괜찮아 보이니까 우리 마을에서 직행 버스를 가지고 있는 곳이라면 어디를 가겠어요?
+
+**[14:26]** I've been to both and only Rosemary amusement park has a direct one.
+
+> 둘 다 다 봤는데 로즈메리 놀이공원만 직접적인 놀이공원을 가지고 있어요
+
+**[14:31]** Bus number 20 goes straight there.
+
+> 버스 20번은 바로 저쪽으로 간다.
+
+**[14:33]** The
+
+> 이
+
+**[14:34]** answer
+
+> 답
+
+**[14:54]** is the answer.
+
+> 답이 바로 이것입니다.
+
+**[15:07]** Hello, Griffin's furnishings.
+
+> 안녕하세요, 그리핀의 가구
+
+**[15:09]** How may I help you?
+
+> 어떻게 도와드릴까요?
+
+**[15:10]** Hello, I'm calling because I have an issue with the chair kit I received.
+
+> 안녕하세요, 전화했어요. 제가 받은 의자장품에 문제가 있어서요.
+
+**[15:16]** Could you please tell me your full name?
+
+> 당신 이름만 말해 주시겠습니까?
+
+**[15:18]** I'm Sally Park.
+
+> 난 살리 파크
+
+**[15:20]** Give me a moment.
+
+> 잠깐만요
+
+**[15:24]** I see that you ordered a do-it-yourself chair, which was delivered yesterday.
+
+> 어제 배달된 자칫 할 수 있는 의자를 주문한 것 같아요
+
+**[15:28]** Yes, that's correct.
+
+> 네, 맞아요
+
+**[15:30]** While putting the chair together, I found a problem.
+
+> 의자를 집어넣는 동안, 난 문제가 생겼어요.
+
+**[15:34]** I'm sorry to hear that.
+
+> 미안해
+
+**[15:36]** Can you be more specific about the issue?
+
+> 좀 더 구체적으로 설명해 주시겠습니까?
+
+**[15:39]** There's a big scratch on one of the chair legs.
+
+> 의자 다리 중 한 쪽에 큰 경 경 경이 있습니다.
+
+**[15:42]** Are the rest of the chair parts in good condition?
+
+> 나머지 의자 부품은 좋은 상태인가요?
+
+**[15:46]** Yes, all of the other parts are fine.
+
+> 네, 다른 모든 부분이 괜찮아요
+
+**[15:49]** It's only the left front leg that is damaged.
+
+> 왼쪽 앞다리만 손상되었습니다.
+
+**[15:52]** In that case, you can get a whole new kit or just the part you need.
+
+> 그런 경우, 완전히 새로운 키트 또는 필요한 부분을 얻을 수 있습니다.
+
+**[15:56]** I'm almost done putting the chair together, so I don't need a whole chair kit.
+
+> 저는 거의 의자를 정리하고 다 끝났어요. 그래서 전체 의자 장비가 필요 없어요.
+
+## 14번
+
+**[16:20]** (한국어) 대화를 듣고 남자의 마지막 말에 대한 여...
+
+**[16:32]** Hey, Jake.
+
+> 안녕, 제이크
+
+**[16:34]** Anna, what's wrong?
+
+> 안나, 무슨 일이야?
+
+**[16:35]** You look so worried.
+
+> 걱정이 안 돼
+
+**[16:37]** My five-year-old daughter doesn't eat a variety of foods.
+
+> 5살 딸은 다양한 음식을 먹지 않습니다.
+
+**[16:40]** Is she willing to taste new foods?
+
+> 새로운 음식을 맛볼 준비가 되셨습니까?
+
+**[16:43]** That's the problem.
+
+> 그게 문제야
+
+**[16:44]** She won't even try them.
+
+> 그녀는 시도조차 하지 않을거야.
+
+**[16:45]** She eats only foods she's used to.
+
+> 그녀는 익숙한 음식만 먹는다.
+
+**[16:48]** Oh, that seems like a big problem.
+
+> 오, 그건 큰 문제처럼 보입니다.
+
+**[16:51]** Why don't you prepare meals together with her?
+
+> 왜 그녀와 함께 식사를 하지 않는가?
+
+**[16:54]** How might that help?
+
+> 어떻게 도와줄 수 있을까요?
+
+**[16:55]** Getting children involved in meal preparation makes them interested in new foods, which can increase the variety of foods they eat.
+
+> 어린이들이 음식을 준비하는 데 참여하게 되면 새로운 음식에 관심을 갖게 되고, 그 음식의 종류가 다양해질 수 있습니다.
+
+**[17:04]** I can see that.
+
+> - 그래요
+
+**[17:05]** But would it work for my daughter?
+
+> 하지만 내 딸에게 효과가 있을까요?
+
+**[17:08]** It was a success with my son when he was your daughter's age.
+
+> 내 아들한테는 성공한 일이었어요.
+
+**[17:12]** Really?
+
+> - 정말?
+
+**[17:12]** Does he eat diverse foods now?
+
+> 이제 다양한 음식을 먹었나요?
+
+**[17:14]** Of course he does.
+
+> 물론 그럴 거야
+
+**[17:16]** His eating habits improved after we prepared meals together.
+
+> 우리가 함께 식사를 한 후 그의 식습관이 좋아졌습니다.
+
+**[17:20]** You should do it this weekend.
+
+> 이번 주말에 해야지
+
+## 15번
+
+**[17:40]** (한국어) 다음 상황 3명을 듣고 올리비아가 앤디에게 할 말로 가장 적절한 것을 고르시여.
+
+**[17:51]** Olivia and Andy are classmates who are taking a history course together.
+
+> 올리비아와 앤디는 함께 역사 수업을 듣습니다.
+
+**[17:57]** In the class, they're assigned a team project.
+
+> 수업에서는 팀 프로젝트가 주어집니다.
+
+**[18:00]** For this project, they decide to create a bicycling route map of local historical sites.
+
+> 이 프로젝트에서 지역 역사적인 장소들을 자전거로 여행하는 길지도를 만들기로 결정했습니다.
+
+**[18:07]** First, they pick some historical sites to include in the map.
+
+> 첫째, 지도에 포함될 수 있는 역사적 장소를 선택합니다.
+
+**[18:12]** Next, they start discussing how to create the map.
+
+> 그 다음, 그들은 지도를 만드는 방법에 대해 논의하기 시작합니다.
+
+**[18:15]** up.
+
+> - 일어나
+
+**[18:16]** Andy says that they can generate the route map by using only the Internet.
+
+> 앤디는 인터넷만 사용해서 노선 지도를 만들 수 있다고 말합니다.
+
+**[18:21]** However, Olivia has a different idea.
+
+> 하지만 올리비아는 다른 생각을 가지고 있습니다.
+
+**[18:25]** She thinks the Internet cannot provide all the information they need, such as closed paths or less difficult routes for bicycling.
+
+> 그녀는 인터넷이 자전거를 타기 위해 폐쇄된 경로나 덜 어려운 경로를 비롯한 필요한 모든 정보를 제공할 수 없다고 생각합니다.
+
+**[18:35]** So, Olivia wants to suggest that they go to each site themselves by riding their bicycles for the project.
+
+> 그래서 올리비아는 그들이 각 사이트에 직접 자전거를 타고 프로젝트를 진행하도록 제안하고 있습니다.
+
+**[18:43]** In this situation, What would Olivia most likely say to Andy?
+
+> 이런 상황에서 올리비아는 앤디에게 뭐라고 말할까?
+
+**[18:49]** Thank you.
+
+> - 고마워요
+
+**[19:12]** 16th and 17th.
+
+> 16번과 17번
+
+**[19:16]** 太もいてっこを無るめたたしよ.
+
+> 너무도 고 고 고 고
+
+**[19:18]** Hello students!
+
+> 안녕하세요, 학생들!
+
+**[19:20]** Do you know that plants often help scientists understand the wonders of nature?
+
+> 식물 들 은 과학자 들 에게 자연 의 놀라운 일 들 을 이해 하는 데 도움 이 되는 것 을 알고 있습니까?
+
+**[19:25]** Let's look at some plants that are perfect for science experiments because they grow quickly.
+
+> 과학 실험에 적합한 식물들을 살펴보자. 왜냐하면 그것들은 빠르게 성장하기 때문입니다.
+
+**[19:30]** First, bamboo is known for quick growth, with some varieties growing inches per day.
+
+> 첫째, 대나무는 빠르게 성장하는 것으로 알려져 있으며, 일부 품종은 하루에 5cm 정도 성장합니다.
+
+**[19:36]** Therefore, it absorbs a large amount of CO2, so it's often used in studies about how to reduce climate change.
+
+> 따라서 이 물질은 많은 양의 CO2를 흡수하기 때문에 기후변화를 줄이는 방법에 대한 연구에서는 자주 사용됩니다.
+
+**[19:43]** Second, lettuce grows quickly and is sensitive to environmental conditions.
+
+> 둘째, 라투스는 빠르게 자라며 환경 조건에 민감하게 반응합니다.
+
+**[19:49]** So scientists grow it to see the effects of various chemicals on plant growth.
+
+> 그래서 과학자들은 다양한 화학 물질이 식물 성장에 미치는 영향을 보기 위해 그것을 키우고 있습니다.
+
+**[19:55]** Third, sunflowers are known for their remarkable growth rate, sometimes reaching several feet in just a few months.
+
+> 셋째, 일산꽃은 놀라운 성장률로 알려져 있으며, 몇 달 만에 몇 피트 정도까지 자란다.
+
+**[20:03]** That's why scientists use them to learn about the effects of soils on plant height.
+
+> 그래서 과학자들은 토양이 식물들의 높이에 미치는 영향에 대해 알아내기 위해 그것들을 사용합니다.
+
+**[20:07]** Finally, peas are classic plants for experiments about genetics, as they grow quickly and have easily observable characteristics, like seed color and shape.
+
+> 마지막으로, 초추는 유전학에 대한 실험을 위한 고전식물입니다. 그들은 빠르게 성장하고 씨앗의 색과 모양과 같은 쉽게 관찰 가능한 특성을 가지고 있습니다.
+
+**[20:19]** For these reasons, the famous scientist, Mandel, studied them.
+
+> 이런 이유로 유명한 과학자 만델은 그것들을 연구했습니다.
+
+**[20:24]** After a short break, we'll look at other plants that are good for science experiments.
+
+> 잠시 휴식 후에 과학 실험에 적합한 다른 식물들을 살펴볼 것입니다.
+
+**[20:33]** Hello students, do you know that plants often help scientists understand the wonders of nature?
+
+> 안녕하세요, 학생들, 식물들이 과학자들에게 자연의 놀라운 것들을 이해하는 데 도움이 되는 것을 알고 계십니까?
+
+**[20:39]** Let's look at some plants that are perfect for science experiments because they grow quickly.
+
+> 과학 실험에 적합한 식물들을 살펴보자. 왜냐하면 그것들은 빠르게 성장하기 때문입니다.
+
+**[20:45]** First, bamboo is known for quick growth, with some varieties growing inches per day.
+
+> 첫째, 대나무는 빠르게 성장하는 것으로 알려져 있으며, 일부 품종은 하루에 5cm 정도 성장합니다.
+
+**[20:51]** Therefore, it absorbs a large amount of CO2 so it's often used in studies about how to reduce climate change.
+
+> 따라서 이 물질은 많은 양의 CO2를 흡수하기 때문에 기후변화를 줄이는 방법에 대한 연구에서는 자주 사용됩니다.
+
+**[20:59]** Second, lettuce grows quickly and is sensitive to environmental conditions.
+
+> 둘째, 라투스는 빠르게 자라며 환경 조건에 민감하게 반응합니다.
+
+**[21:04]** So, scientists grow it to see the effects of various chemicals on plant growth.
+
+> 그래서 과학자들은 다양한 화학 물질이 식물의 성장에 미치는 영향을 보기 위해 그것을 재배합니다.
+
+**[21:10]** Third, sunflowers are known for their remarkable growth rate, sometimes reaching several feet in just a few months.
+
+> 셋째, 일산꽃은 놀라운 성장률로 알려져 있으며, 몇 달 만에 몇 피트 정도까지 자란다.
+
+**[21:17]** That's why scientists use them to learn about the effects of soils on plant height.
+
+> 그래서 과학자들은 토양이 식물들의 높이에 미치는 영향에 대해 알아내기 위해 그것들을 사용합니다.
+
+**[21:23]** Finally, peas are classic plants for experiments about genetics as they grow quickly and have easily observable characteristics like seed color and shape.
+
+> 마지막으로, 초추는 유전학에 대한 실험을 위한 고전식물이며, 그들은 빠르게 성장하며 씨앗의 색과 모양과 같은 쉽게 관찰 가능한 특성을 가지고 있습니다.
+
+**[21:34]** For these reasons, the famous scientist Mandel studied them.
+
+> 이러한 이유로 유명한 과학자 만델은 그것들을 연구했습니다.
+
+**[21:39]** After a short break, we'll look at other plants that are good for science experiments.
+
+> 잠시 휴식 후에 과학 실험에 적합한 다른 식물들을 살펴볼 것입니다.
+
+## 16번
+
+**[21:47]** (한국어) 여자가 하는 말의 주제로 가장 적절한 것은
+
+## 17번
+
+**[22:06]** (한국어) 언급된 식물이 아닌 것은?
+
+**[22:20]** Now, the problem of the et al. is over.
+
+> 이제, et al.의 문제는 끝났어요.
+
+**[22:27]** From the 18th, please answer according to the question mark.
+
+> 18일부터 질문표에 따라 답변해 주세요
