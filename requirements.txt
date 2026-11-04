@@ -10,7 +10,10 @@ imageio-ffmpeg>=0.5.1
 numpy>=1.24
 requests>=2.31
 
-# 선택 사항: 완전 오프라인 번역(--translator nllb)을 사용할 때만 필요합니다.
-# transformers>=4.40
-# sentencepiece>=0.2
-# sacremoses>=0.1
+# GUI 재생
+pygame>=2.5
+
+# NLLB 오프라인 번역 (GUI 기본 번역기, 최초 1회만 모델 다운로드)
+transformers>=4.40
+sentencepiece>=0.2
+sacremoses>=0.1
