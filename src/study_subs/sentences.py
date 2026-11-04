@@ -67,7 +67,7 @@ _ABBREVIATIONS = {
     "al.",
 }
 _PUNCT_ONLY_RE = re.compile(r"^[\s,.!?;:'\"“”‘’()\[\]{}…-]+$")
-_QUESTION_PREFIX_RE = re.compile(r"^(\d{1,2})\s*[.)]\s+(.+)$")
+_QUESTION_PREFIX_RE = re.compile(r"^(\d{1,2})\s*(?:번\s+|[.)]\s*)(.+)$")
 _NUMBER_ONLY_RE = re.compile(r"^\[?(\d{1,2})\]?\s*(?:번)?\s*[.)]?$")
 
 
