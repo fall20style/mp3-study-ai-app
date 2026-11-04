@@ -1,7 +1,8 @@
 # mp3_study_app — 한영 자막 생성기
 
 영어 음성(mp3/wav/m4a)을 **PyTorch Whisper**로 받아쓰고, 문장 단위로 끊어
-**`[분:초] 영어 문장 / 한국어 번역`** 형태의 공부용 자막을 만드는 앱입니다.
+**`[분:초] 영어 문장 / 한국어 번역`** 형태의 공부용 자막과, 문장별로 다시
+들어볼 수 있는 **데스크톱 학습 GUI**를 만드는 앱입니다.
 
 GPU가 없는 노트북(CPU only)을 기준으로 만들었습니다. `ffmpeg`는
 `imageio-ffmpeg`에 포함된 바이너리를 쓰므로 따로 설치할 필요가 없습니다.
@@ -11,13 +12,15 @@ GPU가 없는 노트북(CPU only)을 기준으로 만들었습니다. `ffmpeg`�
 - Whisper **CPU 추론** (기본 `small`, `base`/`medium` 선택 가능)
 - 단어 타임스탬프 기반 **문장 단위 cue** 생성 (너무 긴 문장은 쉼표/단어 경계에서 분할)
 - 영어 → 한국어 번역
-  - `google`: 기본값. 모델 다운로드/CPU 부담 없이 빠름 (온라인)
-  - `nllb`: 완전 오프라인 PyTorch 번역 (모델 약 2.4GB, 느림)
+  - `google`: CLI 기본값. 모델 다운로드/CPU 부담 없이 빠름 (온라인)
+  - `nllb`: 완전 오프라인 PyTorch 번역. **GUI 기본값**, 최초 1회만 내려받고 이후 로컬 캐시 재사용
   - `none`: 영어만 출력
 - 한국어 안내 방송 구간은 자동 감지해서 번역하지 않고 그대로 표시
 - 출력 형식: **SRT, Markdown, TXT(공부용), CSV, JSON, VTT**
 - ASR/번역 결과를 캐시해서 **재실행 시 이어서 작업**
 - `[00:09]`처럼 **분:초 시작 시간** 표시
+- **GUI**: 문장 목록에서 선택 후 `Space`로 재생, `Enter`로 한/영 전환, `j`/`k`로 이동+재생
+- **GUI에서 MP3를 골라 새 프로젝트 생성** (진행률 창 + 취소)
 
 ## 설치
 
@@ -39,7 +42,10 @@ python -m pip install -r requirements.txt
 Linux에서 CUDA 없는 CPU만 쓴다면 위 `torch` 설치 명령을 그대로 쓰면 됩니다.
 이미 CUDA용 torch가 설치되어 있어도 `--device cpu`로 실행할 수 있습니다.
 
-첫 실행 때 Whisper 모델을 내려받습니다.
+첫 실행 때 Whisper 모델을 내려받습니다. GUI의 NLLB 번역도 최초 1회
+`facebook/nllb-200-distilled-600M`(약 2.4GB)을 내려받은 뒤 로컬 캐시를
+계속 사용합니다. Tkinter는 Windows/macOS의 python.org 배포판에 포함되어
+있습니다(Linux는 `sudo apt install python3-tk`).
 
 | 모델 | 대략 크기 | 메모리 | 22분 오디오 기준 CPU 시간* |
 |---|---:|---:|---:|
@@ -52,40 +58,86 @@ Linux에서 CUDA 없는 CPU만 쓴다면 위 `torch` 설치 명령을 그대로 
 `--beam-size`를 5로 올리면 품질은 조금 좋아지지만 2~4배 느려집니다.
 노트북이 느리다면 `--model base`를 먼저 사용해 보세요.
 
-## 실행
+## GUI로 공부하기
+
+```powershell
+python gui.py
+```
+
+- 왼쪽: 문장 카드 목록 (긴 문장도 줄바꿈되어 잘리지 않습니다)
+- 오른쪽: 선택한 문장의 영어/한국어 본문
+- 상단 **`+ MP3로 새 프로젝트`**: MP3를 고르고 이름/Whisper 모델을 정하면
+  `data/project/<파일명>/`에 프로젝트를 만들고, 진행률 창에 단계/퍼센트를
+  표시합니다. NLLB 번역은 고정이며 Google 번역은 사용하지 않습니다.
+
+| 키 | 동작 |
+|---|---|
+| `↑` / `↓` | 문장 선택 이동 |
+| `Space` | 선택한 문장 재생 / 정지 |
+| `Enter` | 오른쪽 본문의 한/영 표시 전환 |
+| `j` | 아래로 이동하며 바로 재생 |
+| `k` | 위로 이동하며 바로 재생 |
+| `Esc` | 재생 정지 |
+
+> `j`는 아래, `k`는 위입니다(Vim과 동일). 목록 이동과 동시에 해당 문장이
+> 재생됩니다. 문장 끝이 잘리지 않도록 앞뒤로 약간의 여유를 두고 재생합니다.
+
+`+ MP3로 새 프로젝트`는 오디오를 프로젝트 폴더로 복사한 뒤 Whisper 모델을
+내려받아 인식합니다. CPU에서 22분 음원 기준 `small`은 대략 15~20분,
+`base`는 7~9분 걸립니다. 창의 **취소**는 현재 단계(음성 인식/번역)가 끝난
+뒤 적용되며, 이미 끝난 인식 결과는 캐시에 남아 다시 만들 때 재사용됩니다.
+
+NLLB 모델은 최초 1회만 `~/.cache/huggingface`에 내려받고(약 2.4GB),
+이후에는 네트워크 확인 없이 로컬 캐시만 사용합니다.
+
+## CLI로 자막 만들기
 
 가장 기본:
 
 ```powershell
-python main.py data/ksat_2026_english.mp3
+python main.py data/project/ksat_2026_english/ksat_2026_english.mp3 `
+  --out-dir data/project/ksat_2026_english
 ```
 
 빠르게 초안만 보고 싶을 때:
 
 ```powershell
-python main.py data/ksat_2026_english.mp3 --model base --formats srt,txt
+python main.py data/lecture.mp3 --model base --formats srt,txt
 ```
 
 번역 없이 영어 자막만:
 
 ```powershell
-python main.py data/ksat_2026_english.mp3 --translator none --formats srt
+python main.py data/lecture.mp3 --translator none --formats srt
 ```
 
 완전 오프라인 번역(NLLB):
 
 ```powershell
-python -m pip install transformers sentencepiece sacremoses
-python main.py data/ksat_2026_english.mp3 --translator nllb
+python main.py data/lecture.mp3 --translator nllb
 ```
 
 출력 폴더/형식 지정:
 
 ```powershell
-python main.py data/ksat_2026_english.mp3 `
+python main.py data/lecture.mp3 `
   --out-dir output `
   --formats srt,md,txt,csv,json
 ```
+
+생성 결과를 프로젝트 폴더로 모으고 `project.json` 만들기:
+
+```powershell
+python make_project.py `
+  --name "2026학년도 수능 영어 듣기" `
+  --audio data/lecture.mp3 `
+  --out-dir output
+```
+
+`--project-dir`를 생략하면 `data/project/<음원 파일명>/`에 만들어집니다.
+생성일은 `--created-at`으로 고정할 수 있고, 생략하면 현재 시각입니다.
+같은 프로젝트에 다시 실행해 메타데이터만 갱신해도 기존 `created_at`은
+유지됩니다.
 
 ### 주요 옵션
 
@@ -108,11 +160,11 @@ python main.py data/ksat_2026_english.mp3 `
 
 ## 출력 예시
 
-`output/ksat_2026_english.txt`:
+`data/project/ksat_2026_english/ksat_2026_english.txt`:
 
 ```text
-제목: ksat_2026_english
-원본: C:\Users\fall2\work\mp3_study_app\data\ksat_2026_english.mp3
+제목: 2026학년도 수능 영어 듣기
+원본: C:\Users\fall2\work\mp3_study_app\data\project\ksat_2026_english\ksat_2026_english.mp3
 모델: whisper-small (cpu)
 번역: google
 길이: 22:36
@@ -133,7 +185,7 @@ python main.py data/ksat_2026_english.mp3 `
           그렇다면 Nightly Journey 앱이 당신에게 딱 맞습니다.
 ```
 
-`output/ksat_2026_english.srt`:
+`data/project/ksat_2026_english/ksat_2026_english.srt`:
 
 ```srt
 1
@@ -150,26 +202,58 @@ It's Ryan.
 Markdown(`.md`)은 `**[00:09]** 영어` + 인용문 형태의 한국어로,
 CSV는 Excel에서 바로 열 수 있도록 UTF-8 BOM으로 저장합니다.
 
-생성된 `.srt`를 `data/ksat_2026_english.mp3` 옆에 같은 이름으로 복사하면
-VLC/PotPlayer 같은 플레이어가 자막을 자동으로 불러옵니다.
+생성된 `.srt`를 음원과 같은 이름으로 같은 폴더에 두면 VLC/PotPlayer 같은
+플레이어가 자막을 자동으로 불러옵니다. (프로젝트 폴더에는 이미 함께 있습니다.)
+
+## 프로젝트 폴더와 project.json
+
+GUI와 `make_project.py`는 음원과 생성 파일을 `data/project/<이름>/` 하나에
+모읍니다.
+
+```text
+data/project/ksat_2026_english/
+  project.json              # 이름, 생성일, 파일 목록, cue 수
+  ksat_2026_english.mp3
+  ksat_2026_english.srt
+  ksat_2026_english.vtt
+  ksat_2026_english.txt
+  ksat_2026_english.md
+  ksat_2026_english.csv
+  ksat_2026_english.json
+  .cache/                   # Whisper/번역 캐시
+```
+
+`project.json` 예:
+
+```json
+{
+  "schema_version": 1,
+  "name": "2026학년도 수능 영어 듣기",
+  "slug": "ksat_2026_english",
+  "created_at": "2026-11-03T10:12:00+09:00",
+  "audio": "ksat_2026_english.mp3",
+  "cues": "ksat_2026_english.json",
+  "subtitles": {"srt": "ksat_2026_english.srt", "txt": "..."},
+  "cue_count": 288,
+  "duration": 1356.3,
+  "meta": {"model": "small", "translator": "google", "language": "en"}
+}
+```
 
 ## 캐시와 재실행
 
 ```text
-output/
+data/project/ksat_2026_english/
   .cache/
     ksat_2026_english.small.en.asr.json   # Whisper 결과
     ksat_2026_english.google.ko.json      # 문장별 번역 결과
-  ksat_2026_english.srt
-  ksat_2026_english.md
-  ksat_2026_english.txt
-  ksat_2026_english.csv
-  ksat_2026_english.json
 ```
 
 ASR은 모델/언어/파일 크기/mtime이 같으면 건너뜁니다. 번역은 문장 해시
 기준으로 캐시하므로, 중간에 실패해도 다시 실행하면 성공한 문장은
 재사용합니다. `--force-asr`, `--force-translate`로 캐시를 무시할 수 있습니다.
+GUI의 새 프로젝트는 새 폴더를 만들고, 취소/실패로 남은 폴더는 다음 시도에서
+같은 폴더를 재사용해 이미 끝난 음성 인식 결과를 건너뜁니다.
 
 ## 한국어 안내 구간 처리
 
@@ -186,35 +270,45 @@ ASR은 모델/언어/파일 크기/mtime이 같으면 건너뜁니다. 번역은
 `data/`에 있는 공식 대본 PDF와 대조하면 좋습니다. (이 앱은 PDF를 자동으로
 읽지 않습니다.)
 
+Whisper가 30초 창 앞쪽의 긴 무음에 걸려 뒤쪽 안내를 통째로 건너뛰는
+경우가 있어, 문장 사이의 긴 무음 구간은 에너지 기반 VAD로 말소리를 찾아
+한 번 더 인식합니다. 또 12초가 넘는데 단어가 거의 없는 영어 구간(한국어
+안내를 영어 문장 하나로 덮어쓴 경우)은 말소리 구간만 한국어로 다시 읽어
+복구합니다. 이 보정은 캐시 fingerprint에 포함되어 있어 로직이 바뀌면
+자동으로 다시 인식합니다.
+
 ## 번역 방식 선택
 
-### Google (기본)
+### Google (CLI 기본)
 
 - 장점: 모델 다운로드 없음, CPU 부담 없음, 품질 좋음, 빠름
 - 단점: 인터넷 필요, 문장이 Google로 전송됨
+- **GUI에서는 사용하지 않습니다.**
 - Google의 공개 웹 엔드포인트를 사용하므로 예고 없이 동작이 바뀔 수 있습니다.
 - 429/네트워크 오류가 나면 `--translate-workers 1`로 줄이고 다시 실행하세요.
 
-### NLLB (오프라인)
+### NLLB (오프라인, GUI 기본)
 
 ```powershell
-python -m pip install transformers sentencepiece sacremoses
-python main.py data/ksat_2026_english.mp3 --translator nllb
+python main.py data/lecture.mp3 --translator nllb
 ```
 
-- `facebook/nllb-200-distilled-600M` 사용 (약 2.4GB 다운로드)
+- `facebook/nllb-200-distilled-600M` 사용 (약 2.4GB, 최초 1회만 다운로드)
 - CPU에서 Google보다 느립니다. 노트북에서는 `--device cpu`(기본)로 동작합니다.
-- 첫 실행은 모델 다운로드 때문에 오래 걸릴 수 있습니다.
+- 두 번째 실행부터는 `local_files_only`로 로컬 캐시만 읽어 네트워크 없이
+  바로 시작합니다.
+- GUI는 항상 NLLB를 사용합니다.
 
 ### 번역 없음
 
 ```powershell
-python main.py data/ksat_2026_english.mp3 --translator none
+python main.py data/lecture.mp3 --translator none
 ```
 
 ## 테스트
 
-모델 다운로드 없이 문장 분리/타임스탬프/출력 로직을 검사합니다.
+모델 다운로드 없이 문장 분리/타임스탬프/출력/프로젝트/무음 구간 보정
+로직을 검사합니다.
 
 ```powershell
 python -m unittest discover -s tests -v
@@ -239,6 +333,20 @@ ffmpeg를 우선 사용합니다.
 Google 요청 한도일 수 있습니다. `--translate-workers 1`로 다시 실행하면
 캐시된 문장은 건너뛰고 실패한 문장만 재시도합니다.
 
+**GUI에서 소리가 나지 않습니다**
+`pygame`이 설치되어 있는지 확인하세요(`pip install -r requirements.txt`).
+스피커/헤드폰 기본 출력 장치를 사용합니다.
+
+**NLLB 모델 다운로드가 실패합니다**
+최초 1회는 `~/.cache/huggingface`로 약 2.4GB를 내려받으므로 인터넷이
+필요합니다. 한 번 받은 뒤에는 로컬 캐시만 사용합니다. 사내망이면
+`HF_ENDPOINT`/프록시 설정이 필요할 수 있습니다.
+
+**GUI에 프로젝트 목록이 비어 있습니다**
+프로젝트가 없어도 GUI는 실행됩니다. 오른쪽 위
+`+ MP3로 새 프로젝트`를 누르거나, `python gui.py --project
+data/project/<이름>`처럼 폴더를 직접 지정하세요.
+
 **한국어가 깨져 보입니다**
 출력 파일은 UTF-8입니다. Windows 콘솔 미리보기는 UTF-8로 재설정되지만,
 `.srt`/`.csv`를 메모장이나 Excel에서 열 때 인코딩을 UTF-8로 선택하세요.
@@ -248,17 +356,20 @@ CSV는 Excel 호환을 위해 UTF-8 BOM으로 저장합니다.
 
 ```text
 main.py                     # CLI 진입점
+gui.py                      # GUI 진입점 (python gui.py)
+make_project.py             # 음원/결과를 프로젝트 폴더로 모으고 project.json 생성
 src/study_subs/
   audio.py                  # 번들 ffmpeg로 16kHz 모노 디코딩
-  asr.py                    # PyTorch Whisper 전사
+  asr.py                    # PyTorch Whisper 전사 + 무음 구간 재인식
   sentences.py              # 단어 타임스탬프 → 문장 cue
   translate.py              # Google / NLLB 번역 + 캐시
   subtitles.py              # SRT/VTT/TXT/MD/CSV/JSON 출력
-  pipeline.py               # 전체 파이프라인 + ASR 캐시
+  pipeline.py               # 전체 파이프라인 + ASR 캐시 + 진행률
+  project.py                # 프로젝트 폴더/project.json 관리
+  gui.py                    # Tkinter 학습 GUI
   cli.py                    # argparse
 tests/test_core.py          # 모델 없이 실행 가능한 단위 테스트
-data/                       # 입력 음원과 참고 PDF
-output/                     # 생성 결과 (gitignore)
+data/project/<이름>/        # 음원 + 자막 + 캐시 + project.json
 ```
 
 ## 저작권
