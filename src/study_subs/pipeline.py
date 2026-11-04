@@ -8,6 +8,7 @@ import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from .asr import ASRResult, transcribe
 from .audio import audio_duration, decode_audio
@@ -16,6 +17,26 @@ from .subtitles import now_text, write_outputs
 from .translate import build_translator
 
 log = logging.getLogger(__name__)
+
+ProgressFn = Callable[[str, float | None], None]
+CancelFn = Callable[[], bool]
+
+
+class CancelledError(RuntimeError):
+    """사용자가 프로젝트 생성을 취소했습니다."""
+
+
+def _emit(progress: ProgressFn | None, message: str, fraction: float | None) -> None:
+    if progress is None:
+        return
+    try:
+        progress(message, fraction)
+    except Exception:  # noqa: BLE001 - 진행률 표시 실패가 작업을 막지 않게
+        pass
+
+
+def _cancelled(cancel: CancelFn | None) -> bool:
+    return bool(cancel and cancel())
 
 
 @dataclass
@@ -49,7 +70,7 @@ def _safe_name(name: str) -> str:
 def _fingerprint(path: Path, config: RunConfig) -> dict:
     stat = path.stat()
     return {
-        "version": 1,
+        "version": 3,
         "size": stat.st_size,
         "mtime": round(stat.st_mtime, 3),
         "model": config.model,
@@ -82,7 +103,12 @@ def _save_json_atomic(path: Path, data: dict) -> None:
     tmp.replace(path)
 
 
-def run(config: RunConfig) -> tuple[dict[str, Path], list[Cue], dict]:
+def run(
+    config: RunConfig,
+    *,
+    progress: ProgressFn | None = None,
+    cancel: CancelFn | None = None,
+) -> tuple[dict[str, Path], list[Cue], dict]:
     input_path = Path(config.input_path)
     if not input_path.exists():
         raise FileNotFoundError(f"입력 파일이 없습니다: {input_path}")
@@ -93,10 +119,12 @@ def run(config: RunConfig) -> tuple[dict[str, Path], list[Cue], dict]:
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     started = time.time()
+    _emit(progress, "오디오 준비 중…", 0.02)
     log.info("[1/4] 오디오 디코딩: %s", input_path)
     audio = decode_audio(input_path, timeout=900)
     duration = audio_duration(audio)
     log.info("      오디오 길이: %s (%.1f초)", _mmss(duration), duration)
+    _emit(progress, "오디오 준비 완료", 0.04)
 
     fingerprint = _fingerprint(input_path, config)
     asr_cache = (
@@ -112,6 +140,7 @@ def run(config: RunConfig) -> tuple[dict[str, Path], list[Cue], dict]:
             config.language,
             config.device,
         )
+        _emit(progress, "Whisper 모델 준비 중…", 0.06)
         t0 = time.time()
         asr_result = transcribe(
             audio,
@@ -122,6 +151,11 @@ def run(config: RunConfig) -> tuple[dict[str, Path], list[Cue], dict]:
             beam_size=config.beam_size,
             initial_prompt=config.initial_prompt,
             verbose=config.whisper_verbose,
+            progress=(
+                None
+                if progress is None
+                else lambda f: _emit(progress, "음성 인식 중…", 0.06 + 0.77 * f)
+            ),
         )
         _save_json_atomic(
             asr_cache,
@@ -139,8 +173,12 @@ def run(config: RunConfig) -> tuple[dict[str, Path], list[Cue], dict]:
             len(asr_result.segments),
             asr_cache,
         )
+    _emit(progress, "음성 인식 완료", 0.84)
+    if _cancelled(cancel):
+        raise CancelledError("사용자가 프로젝트 생성을 취소했습니다.")
 
     log.info("[3/4] 문장 단위 자막 생성")
+    _emit(progress, "문장 정리 중…", 0.86)
     cues = build_cues(
         asr_result.segments,
         duration=duration,
@@ -148,6 +186,7 @@ def run(config: RunConfig) -> tuple[dict[str, Path], list[Cue], dict]:
         max_chars=config.max_cue_chars,
     )
     log.info("      %d개 문장 cue", len(cues))
+    _emit(progress, "문장 정리 완료", 0.88)
 
     translator_label = "none"
     if config.translator.lower() not in ("none", "off", "no"):
@@ -157,6 +196,7 @@ def run(config: RunConfig) -> tuple[dict[str, Path], list[Cue], dict]:
         )
         if config.force_translate:
             translation_cache.unlink(missing_ok=True)
+        _emit(progress, "번역 모델 준비 중…", 0.90)
         translator = build_translator(
             config.translator,
             cache_path=translation_cache,
@@ -168,7 +208,19 @@ def run(config: RunConfig) -> tuple[dict[str, Path], list[Cue], dict]:
         translator_label = translator.label
         t0 = time.time()
         english_cues = [cue for cue in cues if cue.lang == "en"]
-        translations = translator.translate_batch([cue.text for cue in english_cues])
+        _emit(progress, "한국어 번역 중…", 0.92)
+        translations = translator.translate_batch(
+            [cue.text for cue in english_cues],
+            progress=(
+                None
+                if progress is None
+                else lambda done, total: _emit(
+                    progress,
+                    f"한국어 번역 중… {done}/{total}",
+                    0.92 + 0.05 * min(1.0, done / max(1, total)),
+                )
+            ),
+        )
         for cue, ko in zip(english_cues, translations):
             cue.translation = ko
         missing = sum(1 for cue in english_cues if not cue.translation.strip())
@@ -187,6 +239,10 @@ def run(config: RunConfig) -> tuple[dict[str, Path], list[Cue], dict]:
     else:
         log.info("[4/4] 번역 건너뜀 (--translator none)")
 
+    _emit(progress, "번역 완료", 0.97)
+    if _cancelled(cancel):
+        raise CancelledError("사용자가 프로젝트 생성을 취소했습니다.")
+
     meta = {
         "title": config.title or input_path.stem,
         "source": str(input_path.resolve()),
@@ -200,6 +256,7 @@ def run(config: RunConfig) -> tuple[dict[str, Path], list[Cue], dict]:
     }
 
     log.info("자막 파일 저장: %s", out_dir)
+    _emit(progress, "자막 파일 저장 중…", 0.98)
     paths = write_outputs(
         cues,
         out_dir,
@@ -208,6 +265,7 @@ def run(config: RunConfig) -> tuple[dict[str, Path], list[Cue], dict]:
         meta=meta,
         srt_mode=config.srt_mode,
     )
+    _emit(progress, "완료", 1.0)
     log.info("완료: %.1f초 소요", time.time() - started)
     return paths, cues, meta
 
