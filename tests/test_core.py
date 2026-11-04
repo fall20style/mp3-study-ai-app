@@ -18,6 +18,7 @@ from study_subs.asr import (  # noqa: E402
     _rescue_sparse_segments,
     _speech_regions,
 )
+from study_subs.gui import DARK_THEME, LIGHT_THEME, THEMES  # noqa: E402
 from study_subs.project import (  # noqa: E402
     create_project,
     default_project_root,
@@ -415,6 +416,13 @@ class ProjectTests(unittest.TestCase):
 
     def test_default_project_root_finds_repository(self) -> None:
         self.assertEqual(default_project_root(ROOT / "tests"), ROOT / "data" / "project")
+
+
+class ThemeTests(unittest.TestCase):
+    def test_light_and_dark_share_the_same_palette_keys(self) -> None:
+        self.assertEqual(set(LIGHT_THEME), set(DARK_THEME))
+        self.assertIs(THEMES["light"], LIGHT_THEME)
+        self.assertIs(THEMES["dark"], DARK_THEME)
 
 
 if __name__ == "__main__":
