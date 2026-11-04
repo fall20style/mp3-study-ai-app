@@ -7,6 +7,8 @@
 GPU가 없는 노트북(CPU only)을 기준으로 만들었습니다. `ffmpeg`는
 `imageio-ffmpeg`에 포함된 바이너리를 쓰므로 따로 설치할 필요가 없습니다.
 
+![학습 GUI 화면](docs/screenshot.png)
+
 ## 기능
 
 - Whisper **CPU 추론** (기본 `small`, `base`/`medium` 선택 가능)
@@ -376,3 +378,10 @@ data/project/<이름>/        # 음원 + 자막 + 캐시 + project.json
 
 `data/`의 수능 영어 듣기 음원과 대본 PDF는 한국교육과정평가원의
 저작물입니다. 개인 학습용으로만 사용하고 재배포하지 마세요.
+
+## 데모
+
+20초짜리 실제 사용 흐름입니다. 문장 이동(`j`/`k`), 재생(`Space`),
+한/영 전환(`Enter`)을 순서대로 보여 줍니다.
+
+![GUI 사용 데모](docs/demo.gif)
