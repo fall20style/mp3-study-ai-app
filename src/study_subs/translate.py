@@ -21,9 +21,11 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Protocol, Sequence
+from typing import Callable, Protocol, Sequence
 
 log = logging.getLogger(__name__)
+
+ProgressFn = Callable[[int, int], None]
 
 GOOGLE_ENDPOINT = "https://translate.googleapis.com/translate_a/single"
 
@@ -35,7 +37,9 @@ class TranslationError(RuntimeError):
 class Translator(Protocol):
     label: str
 
-    def translate_batch(self, texts: Sequence[str]) -> list[str]:
+    def translate_batch(
+        self, texts: Sequence[str], progress: ProgressFn | None = None
+    ) -> list[str]:
         ...
 
 
@@ -79,7 +83,9 @@ class JsonCache:
 class NoopTranslator:
     label = "none"
 
-    def translate_batch(self, texts: Sequence[str]) -> list[str]:
+    def translate_batch(
+        self, texts: Sequence[str], progress: ProgressFn | None = None
+    ) -> list[str]:
         return ["" for _ in texts]
 
 
@@ -166,7 +172,9 @@ class GoogleTranslator:
                     time.sleep(wait)
         raise TranslationError(f"Google 번역 실패: {last_exc}")
 
-    def translate_batch(self, texts: Sequence[str]) -> list[str]:
+    def translate_batch(
+        self, texts: Sequence[str], progress: ProgressFn | None = None
+    ) -> list[str]:
         texts = list(texts)
         result: list[str] = [""] * len(texts)
 
@@ -210,6 +218,8 @@ class GoogleTranslator:
                     result[idx] = translated
                 if new_count % 20 == 0:
                     self.cache.save()
+                if progress is not None:
+                    progress(done, len(futures))
                 if done % 25 == 0 or done == len(futures):
                     log.info("  번역 진행 %d/%d", done, len(futures))
 
@@ -262,12 +272,25 @@ class NLLBTranslator:
         self.dtype = torch.float16 if self.device == "cuda" else torch.float32
 
         log.info("NLLB 모델 로드: %s (device=%s)", model_name, self.device)
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            model_name, src_lang=self.source_lang
-        )
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(
-            model_name, torch_dtype=self.dtype
-        )
+        tokenizer_kwargs = {"src_lang": self.source_lang}
+        model_kwargs = {"torch_dtype": self.dtype}
+        try:
+            # 이미 받아 둔 모델은 네트워크 확인 없이 바로 재사용합니다.
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                model_name, local_files_only=True, **tokenizer_kwargs
+            )
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(
+                model_name, local_files_only=True, **model_kwargs
+            )
+            log.info("NLLB 로컬 캐시 사용 (재다운로드 없음)")
+        except Exception:
+            log.info("NLLB 모델을 처음 내려받습니다 (약 2.4GB, 1회만)")
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                model_name, **tokenizer_kwargs
+            )
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(
+                model_name, **model_kwargs
+            )
         self.model.to(self.device)
         self.model.eval()
         self.forced_bos_token_id = self.tokenizer.convert_tokens_to_ids(
@@ -292,7 +315,9 @@ class NLLBTranslator:
             )
         return self.tokenizer.batch_decode(output, skip_special_tokens=True)
 
-    def translate_batch(self, texts: Sequence[str]) -> list[str]:
+    def translate_batch(
+        self, texts: Sequence[str], progress: ProgressFn | None = None
+    ) -> list[str]:
         texts = list(texts)
         result: list[str] = [""] * len(texts)
         missing: dict[str, list[int]] = {}
@@ -324,6 +349,8 @@ class NLLBTranslator:
                 for idx in missing[text]:
                     result[idx] = ko
             done = min(start + len(chunk), len(unique))
+            if progress is not None:
+                progress(done, len(unique))
             if done % 16 == 0 or done == len(unique):
                 log.info("  번역 진행 %d/%d", done, len(unique))
             self.cache.save()
