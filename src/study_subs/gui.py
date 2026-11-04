@@ -182,8 +182,10 @@ class CueList(tk.Frame):
         )
         self.text.tag_configure("q", foreground="#1d4ed8")
         self.text.tag_configure("ko", foreground="#b45309")
-        self.text.tag_configure("sel", background="#dbeafe")
-        self.text.tag_raise("sel")
+        self.text.tag_configure(
+            "current", background="#dbeafe", foreground="#0f172a"
+        )
+        self.text.tag_raise("current")
         self.text.configure(state="disabled")
 
         self.text.bind("<Button-1>", self._on_click)
@@ -229,12 +231,13 @@ class CueList(tk.Frame):
             return
         self._current = index
         widget = self.text
-        widget.tag_remove("sel", "1.0", "end")
+        widget.tag_remove("current", "1.0", "end")
         start, end = self._ranges[index]
-        widget.tag_add("sel", start, end)
-        widget.tag_raise("sel")
+        widget.tag_add("current", start, end)
+        widget.tag_raise("current")
         if see:
             widget.see(start)
+            widget.see(end)
         self._on_select(index)
 
     def focus_set(self) -> None:  # type: ignore[override]
@@ -728,11 +731,15 @@ class StudyApp(tk.Tk):
         tk.Frame(view, bg="#ffffff").pack(fill="both", expand=True)
         self.hint_label = tk.Label(
             view,
-            text="Space: 재생/정지   ·   Enter: 한영 전환   ·   j/k: 위/아래 이동 + 재생   ·   Esc: 정지",
+            text=(
+                "Space: 재생/정지   ·   Enter: 한영 전환\n"
+                "j/k: 위/아래 이동 + 재생   ·   Esc: 정지"
+            ),
             font=self.font_small,
             bg="#ffffff",
             fg="#94a3b8",
             anchor="w",
+            justify="left",
         )
         self.hint_label.pack(fill="x", side="bottom")
 
