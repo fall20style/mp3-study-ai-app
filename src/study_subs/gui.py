@@ -611,8 +611,14 @@ class TailFixReport(tk.Toplevel):
         ).pack(fill="x")
 
         total = sum(fix.extension for fix in fixes)
+        shifted = sum(1 for fix in fixes if fix.shifts_next)
         saved = saved_paths[0].parent if saved_paths else None
         note = f"종료 시간을 모두 {total:.2f}초 늘렸습니다."
+        if shifted:
+            note += (
+                f"\n다음 문장과 경계가 겹치던 {shifted}곳은 "
+                "다음 문장 시작도 함께 뒤로 옮겼습니다."
+            )
         if saved is not None:
             note += f"\n저장 위치: {saved}"
         tk.Label(
@@ -654,11 +660,22 @@ class TailFixReport(tk.Toplevel):
         text.pack(side="left", fill="both", expand=True)
         scroll.config(command=text.yview)
 
-        lines = [
-            f"{fix.index:03d}   {_format_seconds(fix.old_end)} → "
-            f"{_format_seconds(fix.new_end)}   (+{fix.extension:.2f}초)"
-            for fix in fixes
-        ]
+        lines: list[str] = []
+        for fix in fixes:
+            lines.append(
+                f"{fix.index:03d}   {_format_seconds(fix.old_end)} → "
+                f"{_format_seconds(fix.new_end)}   (+{fix.extension:.2f}초)"
+            )
+            if (
+                fix.shifts_next
+                and fix.next_old_start is not None
+                and fix.next_new_start is not None
+            ):
+                lines.append(
+                    f"      ↳ {fix.next_index:03d} 시작 "
+                    f"{_format_seconds(fix.next_old_start)} → "
+                    f"{_format_seconds(fix.next_new_start)}"
+                )
         text.insert("1.0", "\n".join(lines))
         text.configure(state="disabled")
 
@@ -1198,7 +1215,13 @@ class StudyApp(tk.Tk):
         end = cue.end + 0.45
         if idx + 1 < len(self.project.cues):
             next_start = self.project.cues[idx + 1].start
-            end = min(end, max(cue.start + 0.25, next_start - 0.03))
+            if next_start > cue.end + 1e-6:
+                end = min(end, max(cue.start + 0.25, next_start - 0.03))
+            else:
+                # 다음 문장과 경계가 정확히 겹치면 저장된 종료보다 먼저
+                # 재생을 끊지 않습니다. 꼬리 잘림 보정 전에도 들을 수 있게
+                # 짧은 여유를 남깁니다.
+                end = cue.end + 0.30
         elif self.project.duration:
             end = min(end, self.project.duration)
         try:
@@ -1348,10 +1371,18 @@ class StudyApp(tk.Tk):
             return
 
         by_index = {fix.index: fix for fix in fixes}
+        start_shifts = {
+            fix.next_index: fix.next_new_start
+            for fix in fixes
+            if fix.next_index is not None and fix.next_new_start is not None
+        }
         for cue in self.project.cues:
             fix = by_index.get(cue.index)
             if fix is not None:
                 cue.end = fix.new_end
+            new_start = start_shifts.get(cue.index)
+            if new_start is not None:
+                cue.start = new_start
 
         try:
             saved_paths = save_project_cues(self.project)

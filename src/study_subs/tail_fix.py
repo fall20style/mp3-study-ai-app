@@ -6,6 +6,8 @@ Whisper의 단어 타임스탬프는 마지막 자음이나 여운보다 조금 
 
 - 실제로 소리가 나던 문장만 대상으로 합니다. (끝이 무음이면 건드리지 않음)
 - 다음 cue의 시작은 침범하지 않습니다.
+- 다음 cue와 경계가 정확히 겹치는 경우에는, 그 뒤에 충분한 무음이 있고
+  다음 발화가 한참 뒤에 있을 때만 경계를 함께 옮깁니다.
 - 무음 뒤에 떨어져 있는 다른 발화는 이어 붙이지 않습니다.
 - 연장 폭이 너무 크면(문장이 통째로 빠진 경우) 건드리지 않습니다.
 """
@@ -42,10 +44,19 @@ class TailFix:
     index: int
     old_end: float
     new_end: float
+    # 종료 시간과 다음 문장 시작이 겹쳐 있어, 다음 문장 시작도 함께
+    # 뒤로 옮긴 경우에만 채워집니다.
+    next_index: int | None = None
+    next_old_start: float | None = None
+    next_new_start: float | None = None
 
     @property
     def extension(self) -> float:
         return max(0.0, self.new_end - self.old_end)
+
+    @property
+    def shifts_next(self) -> bool:
+        return self.next_index is not None and self.next_new_start is not None
 
 
 @dataclass(frozen=True)
@@ -69,6 +80,10 @@ class TailFixConfig:
     max_silence_gap: float = 0.04
     next_gap: float = 0.03
     scan_margin: float = 0.30
+    # 다음 cue 시작과 경계가 정확히 겹칠 때의 보수적인 한도.
+    # 다음 발화가 통째로 섞여 들어온 경우와 구분하기 위해 짧은 꼬리만 허용합니다.
+    zero_gap_max_extension: float = 0.30
+    zero_gap_min_pause: float = 0.10
 
 
 def _frame_levels(
@@ -156,19 +171,26 @@ def analyze_tail_clipping(
         if not np.isfinite(start) or not np.isfinite(end) or end <= start:
             continue
 
-        next_start = (
-            float(cues[position + 1].start)
-            if position + 1 < len(cues)
-            else duration
-        )
+        next_cue = cues[position + 1] if position + 1 < len(cues) else None
+        next_start = float(next_cue.start) if next_cue is not None else duration
         if not np.isfinite(next_start):
             next_start = duration
 
-        # 다음 cue 시작 바로 앞까지만 본다.
-        scan_end = min(
-            next_start - config.next_gap,
-            end + config.max_extension + config.scan_margin,
-        )
+        # 저장된 경계가 정확히 맞닿아 있으면(016/017처럼) 다음 cue 시작
+        # 바로 앞에서 자르면 꼬리를 볼 수 없습니다. 이때는 다음 cue의 실제
+        # 발화 시작을 찾아 그 앞까지만 살펴봅니다.
+        shared_boundary = next_cue is not None and next_start <= end + 1e-6
+        if shared_boundary:
+            scan_end = min(
+                duration,
+                end + config.max_extension + config.scan_margin,
+            )
+        else:
+            # 다음 cue 시작 바로 앞까지만 본다.
+            scan_end = min(
+                next_start - config.next_gap,
+                end + config.max_extension + config.scan_margin,
+            )
         if scan_end - end < config.min_extension:
             continue
 
@@ -210,6 +232,14 @@ def analyze_tail_clipping(
                 break
             index += 1
 
+        # 꼬리 뒤에 끊긴 무음 다음으로 다시 시작되는 발화(다음 cue의 실제
+        # 시작)를 찾습니다. 경계가 겹치는 경우 이 지점을 넘지 않습니다.
+        onset: float | None = None
+        for after in range(last + 1, above.size):
+            if bool(above[after]):
+                onset = float(after_times[after])
+                break
+
         raw_extension = (float(after_times[last]) + config.frame_seconds) - end
         if raw_extension < config.min_extension:
             continue
@@ -219,16 +249,52 @@ def analyze_tail_clipping(
             continue
 
         limit = end + config.max_extension
-        if next_start > end:
+        if not shared_boundary and next_start > end:
             limit = min(limit, next_start - config.next_gap)
         new_end = min(end + raw_extension + config.tail_padding, limit)
         new_end = round(new_end, 3)
+
+        next_new_start: float | None = None
+        next_old_start: float | None = None
+        if shared_boundary:
+            if next_cue is None:  # pragma: no cover - shared_boundary가 보장
+                continue
+            tail_end = float(after_times[last]) + config.frame_seconds
+            pause = (onset if onset is not None else scan_end) - tail_end
+            if raw_extension > config.zero_gap_max_extension:
+                # 다음 cue 발화가 꼬리로 합쳐졌을 가능성이 큽니다.
+                continue
+            if pause < config.zero_gap_min_pause:
+                continue
+            if onset is None or new_end + config.next_gap > onset:
+                # 다음 발화와의 간격을 확보할 수 없으면 경계를 옮기지 않습니다.
+                continue
+            next_new_start = round(new_end + config.next_gap, 3)
+            if next_new_start >= float(next_cue.end) - 0.05:
+                # 다음 cue의 발화 구간을 거의 지워 버리는 경우는 제외합니다.
+                continue
+            next_old_start = round(float(next_cue.start), 3)
+            if next_new_start - next_old_start < config.min_extension:
+                next_new_start = None
+                next_old_start = None
+
         old_end = round(end, 3)
         if new_end - old_end < config.min_extension:
             continue
 
         fixes.append(
-            TailFix(index=int(cue.index), old_end=old_end, new_end=new_end)
+            TailFix(
+                index=int(cue.index),
+                old_end=old_end,
+                new_end=new_end,
+                next_index=(
+                    int(next_cue.index)
+                    if next_new_start is not None and next_cue is not None
+                    else None
+                ),
+                next_old_start=next_old_start,
+                next_new_start=next_new_start,
+            )
         )
 
     return fixes

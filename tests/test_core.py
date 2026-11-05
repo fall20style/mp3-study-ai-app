@@ -539,6 +539,37 @@ class TailFixTests(unittest.TestCase):
         self.assertEqual(len(fixes), 1)
         self.assertAlmostEqual(fixes[0].new_end, 1.32, places=2)
 
+    def test_zero_gap_tail_moves_next_start_forward(self) -> None:
+        audio = np.zeros(int(4.0 * self.SAMPLE_RATE), dtype=np.float32)
+        audio[int(0.10 * self.SAMPLE_RATE) : int(1.20 * self.SAMPLE_RATE)] = (
+            self._tone(1.10)
+        )
+        # 다음 문장의 실제 발화는 1.60부터지만 저장된 시작은 경계와 겹칩니다.
+        audio[int(1.60 * self.SAMPLE_RATE) : int(2.20 * self.SAMPLE_RATE)] = (
+            self._tone(0.60)
+        )
+        cues = [CueSpan(1, 0.10, 1.00), CueSpan(2, 1.00, 2.20)]
+
+        fixes = analyze_tail_clipping(audio, cues)
+
+        self.assertEqual(len(fixes), 1)
+        fix = fixes[0]
+        self.assertEqual(fix.index, 1)
+        self.assertAlmostEqual(fix.new_end, 1.25, places=2)
+        self.assertEqual(fix.next_index, 2)
+        self.assertAlmostEqual(fix.next_old_start, 1.00, places=2)
+        self.assertAlmostEqual(fix.next_new_start, 1.28, places=2)
+        self.assertGreater(fix.next_new_start, fix.old_end)
+
+    def test_zero_gap_continuous_speech_is_not_merged(self) -> None:
+        audio = np.zeros(int(3.0 * self.SAMPLE_RATE), dtype=np.float32)
+        audio[int(0.10 * self.SAMPLE_RATE) : int(1.60 * self.SAMPLE_RATE)] = (
+            self._tone(1.50)
+        )
+        cues = [CueSpan(1, 0.10, 1.00), CueSpan(2, 1.00, 1.60)]
+
+        self.assertEqual(analyze_tail_clipping(audio, cues), [])
+
 
 class ThemeTests(unittest.TestCase):
     def test_light_and_dark_share_the_same_palette_keys(self) -> None:
