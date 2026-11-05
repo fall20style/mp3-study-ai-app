@@ -137,6 +137,92 @@ def load_project(directory: str | Path) -> Project:
     )
 
 
+def project_cues_path(project: Project) -> Path:
+    """프로젝트의 cue JSON 경로를 돌려줍니다."""
+
+    name = project.data.get("cues")
+    if not name:
+        slug = str(project.data.get("slug") or project.directory.name)
+        name = f"{slug}.json"
+    return project.directory / str(name)
+
+
+def save_project_cues(project: Project) -> list[Path]:
+    """현재 `project.cues`를 cue JSON과 기존 자막 파일에 다시 저장합니다.
+
+    종료 시간만 바꾼 뒤 SRT/VTT/TXT/MD/CSV를 한 번에 갱신할 때 사용합니다.
+    `project.json`의 메타데이터는 그대로 두고, cue JSON의 기존 meta도
+    보존합니다.
+    """
+
+    from .sentences import Cue
+    from .subtitles import (
+        write_csv,
+        write_json,
+        write_markdown,
+        write_srt,
+        write_txt,
+        write_vtt,
+    )
+
+    cues_path = project_cues_path(project)
+    try:
+        _, meta = load_cues(cues_path)
+    except (FileNotFoundError, ValueError):
+        meta = dict(project.meta)
+
+    cues = [
+        Cue(
+            index=cue.index,
+            start=cue.start,
+            end=cue.end,
+            text=cue.text,
+            translation=cue.translation,
+            question=cue.question,
+            lang=cue.lang,
+        )
+        for cue in project.cues
+    ]
+
+    paths: list[Path] = [cues_path]
+    write_json(cues, cues_path, meta)
+
+    subtitles = project.data.get("subtitles")
+    targets: list[tuple[str, str]] = []
+    if isinstance(subtitles, dict) and subtitles:
+        for extension in SUBTITLE_EXTENSIONS:
+            fmt = extension.lstrip(".")
+            name = subtitles.get(fmt)
+            if name:
+                targets.append((fmt, str(name)))
+    else:
+        # project.json에 자막 목록이 없으면 실제로 존재하는 파일만 갱신합니다.
+        slug = str(project.data.get("slug") or project.directory.name)
+        for extension in SUBTITLE_EXTENSIONS:
+            fmt = extension.lstrip(".")
+            name = f"{slug}{extension}"
+            if (project.directory / name).exists():
+                targets.append((fmt, name))
+
+    for fmt, name in targets:
+        path = project.directory / name
+        if fmt == "srt":
+            write_srt(cues, path)
+        elif fmt == "vtt":
+            write_vtt(cues, path)
+        elif fmt == "txt":
+            write_txt(cues, path, meta)
+        elif fmt == "md":
+            write_markdown(cues, path, meta)
+        elif fmt == "csv":
+            write_csv(cues, path)
+        else:
+            continue
+        paths.append(path)
+
+    return paths
+
+
 def default_project_root(start: str | Path | None = None) -> Path:
     """`data/project`의 기본 위치를 찾습니다.
 
