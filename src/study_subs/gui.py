@@ -29,8 +29,10 @@ from .project import (
     default_project_root,
     discover_projects,
     load_project,
+    save_project_cues,
 )
 from .subtitles import format_mmss
+from .tail_fix import CueSpan, TailFix, analyze_tail_clipping
 
 
 LIGHT_THEME: dict[str, str] = {
@@ -578,6 +580,110 @@ class ProgressDialog(tk.Toplevel):
         self.destroy()
 
 
+class TailFixReport(tk.Toplevel):
+    """끝 잘림 보정 결과와 바뀐 문장 번호를 보여주는 창."""
+
+    def __init__(
+        self,
+        master: tk.Misc,
+        *,
+        fixes: list[TailFix],
+        saved_paths: list[Path],
+    ) -> None:
+        super().__init__(master)
+        colors = getattr(master, "theme", LIGHT_THEME)
+        self.title("끝 잘림 보정 결과")
+        self.transient(master)
+        self.configure(bg=colors["panel_bg"])
+        self.resizable(True, True)
+
+        body = tk.Frame(self, bg=colors["panel_bg"], padx=24, pady=20)
+        body.pack(fill="both", expand=True)
+
+        family = tkfont.nametofont("TkDefaultFont").actual("family")
+        tk.Label(
+            body,
+            text=f"끝이 잘린 문장 {len(fixes)}개를 보정했습니다",
+            font=(family, 14, "bold"),
+            bg=colors["panel_bg"],
+            fg=colors["text"],
+            anchor="w",
+        ).pack(fill="x")
+
+        total = sum(fix.extension for fix in fixes)
+        saved = saved_paths[0].parent if saved_paths else None
+        note = f"종료 시간을 모두 {total:.2f}초 늘렸습니다."
+        if saved is not None:
+            note += f"\n저장 위치: {saved}"
+        tk.Label(
+            body,
+            text=note,
+            font=(family, 9),
+            bg=colors["panel_bg"],
+            fg=colors["muted"],
+            anchor="w",
+            justify="left",
+        ).pack(fill="x", pady=(4, 14))
+
+        frame = tk.Frame(
+            body,
+            bg=colors["panel_bg"],
+            highlightbackground=colors["panel_border"],
+            highlightthickness=1,
+        )
+        frame.pack(fill="both", expand=True)
+
+        scroll = ttk.Scrollbar(frame, orient="vertical")
+        scroll.pack(side="right", fill="y")
+        mono = getattr(master, "font_list", (family, 10))
+        text = tk.Text(
+            frame,
+            wrap="none",
+            bd=0,
+            relief="flat",
+            highlightthickness=0,
+            padx=10,
+            pady=8,
+            font=mono,
+            bg=colors["input_bg"],
+            fg=colors["text"],
+            selectbackground=colors["select_bg"],
+            selectforeground=colors["select_fg"],
+            yscrollcommand=scroll.set,
+        )
+        text.pack(side="left", fill="both", expand=True)
+        scroll.config(command=text.yview)
+
+        lines = [
+            f"{fix.index:03d}   {_format_seconds(fix.old_end)} → "
+            f"{_format_seconds(fix.new_end)}   (+{fix.extension:.2f}초)"
+            for fix in fixes
+        ]
+        text.insert("1.0", "\n".join(lines))
+        text.configure(state="disabled")
+
+        buttons = tk.Frame(body, bg=colors["panel_bg"])
+        buttons.pack(fill="x", pady=(14, 0))
+        ttk.Button(buttons, text="닫기", command=self.destroy).pack(side="right")
+
+        self.bind("<Escape>", lambda _event: self.destroy())
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.update_idletasks()
+        width = max(520, min(720, self.winfo_reqwidth()))
+        height = max(380, min(620, self.winfo_reqheight() + 80))
+        x = master.winfo_rootx() + max(0, (master.winfo_width() - width) // 2)
+        y = master.winfo_rooty() + max(0, (master.winfo_height() - height) // 3)
+        self.geometry(f"{width}x{height}+{x}+{y}")
+        self.grab_set()
+        self.focus_set()
+
+
+def _format_seconds(seconds: float) -> str:
+    total = max(0.0, float(seconds))
+    minutes, secs = divmod(total, 60.0)
+    return f"{int(minutes):02d}:{secs:05.2f}"
+
+
 class StudyApp(tk.Tk):
     LEFT_WIDTH = 500
 
@@ -602,6 +708,9 @@ class StudyApp(tk.Tk):
         self._stop_after: str | None = None
         self.player: SegmentPlayer | None = None
         self._player_error: str | None = None
+        self._tail_busy = False
+        self._tail_queue: "queue.Queue[tuple[str, object]] | None" = None
+        self._tail_project_dir: Path | None = None
 
         self.title(f"{project.name} — 영어 듣기 학습" if project else "영어 듣기 학습")
         self.geometry(self._center_geometry(1180, 760))
@@ -834,6 +943,12 @@ class StudyApp(tk.Tk):
         ttk.Button(bar, text="다음 문장", command=lambda: self._step(1)).pack(
             side="left", padx=6, pady=8
         )
+        self.tail_btn = ttk.Button(
+            bar, text="끝 잘림 보정", command=self._fix_tail_clipping
+        )
+        self.tail_btn.pack(side="left", padx=(18, 6), pady=8)
+        if self._tail_busy:
+            self.tail_btn.state(["disabled"])
         self.mode_var = tk.StringVar(
             value="표시: 한영" if self.show_korean else "표시: 영어만"
         )
@@ -1146,6 +1261,112 @@ class StudyApp(tk.Tk):
         self.cue_list.focus_set()
         self._play_selected()
         return "break"
+
+    # ------------------------------------------------------------- tail fix
+
+    def _fix_tail_clipping(self) -> str:
+        if self.project is None:
+            messagebox.showinfo("프로젝트 없음", "먼저 MP3로 새 프로젝트를 만드세요.")
+            return "break"
+        if self._tail_busy:
+            return "break"
+        if not self.project.cues:
+            messagebox.showinfo("문장 없음", "보정할 문장이 없습니다.")
+            return "break"
+
+        self._stop_playback(quiet=True)
+        self._tail_busy = True
+        self._tail_project_dir = self.project.directory
+        if hasattr(self, "tail_btn"):
+            self.tail_btn.state(["disabled"])
+        self.status_var.set("끝 잘림 분석 중…")
+
+        result_queue: "queue.Queue[tuple[str, object]]" = queue.Queue()
+        self._tail_queue = result_queue
+        spans = [
+            CueSpan(index=cue.index, start=cue.start, end=cue.end)
+            for cue in self.project.cues
+        ]
+        worker = threading.Thread(
+            target=self._tail_worker,
+            args=(self.project.audio, spans, result_queue),
+            daemon=True,
+        )
+        worker.start()
+        self.after(100, lambda: self._poll_tail(result_queue))
+        return "break"
+
+    @staticmethod
+    def _tail_worker(
+        audio_path: Path,
+        spans: list[CueSpan],
+        result_queue: "queue.Queue[tuple[str, object]]",
+    ) -> None:
+        try:
+            from .audio import decode_audio
+
+            audio = decode_audio(audio_path)
+            fixes = analyze_tail_clipping(audio, spans)
+            result_queue.put(("ok", fixes))
+        except Exception as exc:  # noqa: BLE001 - GUI에 오류를 표시
+            result_queue.put(("error", (str(exc), traceback.format_exc())))
+
+    def _poll_tail(self, result_queue: "queue.Queue[tuple[str, object]]") -> None:
+        if self._tail_queue is not result_queue:
+            return
+        try:
+            kind, payload = result_queue.get_nowait()
+        except queue.Empty:
+            self.after(120, lambda: self._poll_tail(result_queue))
+            return
+
+        self._tail_queue = None
+        self._tail_busy = False
+        if hasattr(self, "tail_btn"):
+            self.tail_btn.state(["!disabled"])
+
+        if kind == "error":
+            self.status_var.set("끝 잘림 분석 실패")
+            message, detail = payload  # type: ignore[misc]
+            messagebox.showerror(
+                "끝 잘림 분석 실패",
+                str(message) + ("\n\n" + str(detail)[-1200:] if detail else ""),
+            )
+            return
+
+        if self.project is None or self.project.directory != self._tail_project_dir:
+            self.status_var.set("끝 잘림 분석 취소됨")
+            return
+
+        fixes: list[TailFix] = list(payload)  # type: ignore[arg-type]
+        if not fixes:
+            self.status_var.set("끝 잘림 없음")
+            messagebox.showinfo(
+                "끝 잘림 보정",
+                "끝이 미세하게 잘린 문장을 찾지 못했습니다.",
+            )
+            return
+
+        by_index = {fix.index: fix for fix in fixes}
+        for cue in self.project.cues:
+            fix = by_index.get(cue.index)
+            if fix is not None:
+                cue.end = fix.new_end
+
+        try:
+            saved_paths = save_project_cues(self.project)
+        except Exception as exc:  # noqa: BLE001 - 저장 실패를 사용자에게 알림
+            messagebox.showerror(
+                "저장 실패",
+                f"종료 시간을 저장하지 못했습니다.\n{exc}",
+            )
+            self._reload()
+            return
+
+        selected = self._current_index()
+        self._populate(selected)
+        self.status_var.set(f"끝 잘림 {len(fixes)}개 보정 완료")
+        TailFixReport(self, fixes=fixes, saved_paths=saved_paths)
 
     # -------------------------------------------------------------- project
 
