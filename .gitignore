@@ -7,6 +7,7 @@ output_*/
 .ipynb_checkpoints/
 *.log
 *.swp
+*.un~
 
 # 학습 데이터/생성 결과 (용량이 큼)
 data/project/
