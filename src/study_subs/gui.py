@@ -199,10 +199,9 @@ class SegmentPlayer:
 
 
 class CueList(tk.Frame):
-    """문장 번호와 본문을 한 줄로 보여 주는 스크롤 목록.
+    """문장 번호와 재생 구간만 보여 주는 스크롤 목록.
 
-    긴 문장은 오른쪽 패널에서 전체를 확인할 수 있도록 목록에서는 폭에 맞춰
-    줄임표로 줄여 표시합니다.
+    영어 본문은 오른쪽 패널에서만 보여 주어 듣기 학습을 방해하지 않습니다.
     """
 
     def __init__(
@@ -221,9 +220,6 @@ class CueList(tk.Frame):
         self._cues: list = []
         self._ranges: list[tuple[str, str]] = []
         self._current: int | None = None
-        self._last_width = 0
-        self._font_num = tkfont.Font(font=(font_head[0], font_head[1], "bold"))
-        self._font_body = tkfont.Font(font=font_body)
 
         scroll = ttk.Scrollbar(self, orient="vertical")
         scroll.pack(side="right", fill="y")
@@ -253,9 +249,7 @@ class CueList(tk.Frame):
         self.text.tag_configure(
             "num", font=(font_head[0], font_head[1], "bold"), foreground=colors["accent"]
         )
-        self.text.tag_configure("body", font=font_body, foreground=colors["text"])
-        self.text.tag_configure("q", foreground=colors["question"])
-        self.text.tag_configure("ko", foreground=colors["korean"])
+        self.text.tag_configure("time", font=font_head, foreground=colors["muted"])
         self.text.tag_configure(
             "current", background=colors["select_bg"], foreground=colors["select_fg"]
         )
@@ -264,7 +258,6 @@ class CueList(tk.Frame):
 
         self.text.bind("<Button-1>", self._on_click)
         self.text.bind("<Double-Button-1>", self._on_double)
-        self.text.bind("<Configure>", self._on_configure)
         self.text.bind("<Up>", lambda _e: self._move(-1))
         self.text.bind("<Down>", lambda _e: self._move(1))
         self.text.bind("<Prior>", lambda _e: self._move(-8))
@@ -274,58 +267,24 @@ class CueList(tk.Frame):
 
     # -- list-like API -----------------------------------------------------
 
-    def _fit(self, text: str, max_px: int) -> str:
-        if max_px <= self._font_body.measure("…"):
-            return ""
-        if self._font_body.measure(text) <= max_px:
-            return text
-        low, high = 0, len(text)
-        while low < high:
-            mid = (low + high + 1) // 2
-            if self._font_body.measure(text[:mid] + "…") <= max_px:
-                low = mid
-            else:
-                high = mid - 1
-        return text[:low].rstrip() + "…"
-
     def _render(self) -> None:
         widget = self.text
-        width = widget.winfo_width()
-        if width <= 100:
-            width = 440
         widget.configure(state="normal")
         widget.delete("1.0", "end")
         self._ranges = []
         for i, cue in enumerate(self._cues):
             start = widget.index("end-1c")
             tags = (f"cue{i}",)
-            number = f"{cue.index:03d}"
-            widget.insert("end", number, ("num",) + tags)
-
-            prefix = "  "
-            if cue.question:
-                prefix += f"Q{cue.question}  "
-            body = (cue.text or "").strip()
-            if cue.lang == "ko":
-                body = "[한국어] " + body
-                tags = tags + ("ko",)
-
-            used = self._font_num.measure(number) + self._font_body.measure(prefix)
-            body = self._fit(body, max(80, width - used - 22))
-            body_tags = ("body",) + tags
-            if cue.question:
-                body_tags += ("q",)
-            widget.insert("end", prefix + body, body_tags)
+            widget.insert("end", f"{cue.index:03d}", ("num",) + tags)
+            widget.insert(
+                "end",
+                f"  {format_mmss(cue.start)} - {format_mmss(cue.end)}",
+                ("time",) + tags,
+            )
             line_end = widget.index("end-1c")
             widget.insert("end", "\n", tags)
             self._ranges.append((start, line_end))
         widget.configure(state="disabled")
-
-    def _refresh(self) -> None:
-        index = self._current
-        self._render()
-        if index is not None and 0 <= index < len(self._cues):
-            self._apply_current(index, see=False)
 
     def set_cues(self, cues: list) -> None:
         self._cues = list(cues)
@@ -356,12 +315,6 @@ class CueList(tk.Frame):
             return
         self._apply_current(index, see=see)
         self._on_select(index)
-
-    def _on_configure(self, event: tk.Event) -> None:
-        if not self._cues or abs(event.width - self._last_width) < 12:
-            return
-        self._last_width = event.width
-        self._refresh()
 
     def focus_set(self) -> None:  # type: ignore[override]
         self.text.focus_set()
