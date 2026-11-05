@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -24,9 +27,11 @@ from study_subs.project import (  # noqa: E402
     default_project_root,
     discover_projects,
     load_project,
+    save_project_cues,
 )
 from study_subs.sentences import build_cues, detect_language  # noqa: E402
 from study_subs.subtitles import format_mmss, format_srt_time, write_srt  # noqa: E402
+from study_subs.tail_fix import CueSpan, TailFixConfig, analyze_tail_clipping  # noqa: E402
 
 
 def seg(start: float, end: float, words: list[tuple[float, float, str]]) -> ASRSegment:
@@ -416,6 +421,123 @@ class ProjectTests(unittest.TestCase):
 
     def test_default_project_root_finds_repository(self) -> None:
         self.assertEqual(default_project_root(ROOT / "tests"), ROOT / "data" / "project")
+
+    def test_save_project_cues_rewrites_json_and_existing_subtitles(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            (directory / "lecture.mp3").write_bytes(b"ID3fake")
+            cue_data = {
+                "meta": {
+                    "title": "강의",
+                    "model": "base",
+                    "translator": "nllb",
+                    "duration": 4.0,
+                    "generated_at": "2026-01-01 00:00:00",
+                },
+                "cues": [
+                    {
+                        "index": 1,
+                        "start": 0.0,
+                        "end": 1.0,
+                        "question": None,
+                        "language": "en",
+                        "english": "Hello.",
+                        "korean": "안녕하세요.",
+                    }
+                ],
+            }
+            (directory / "lecture.json").write_text(
+                json.dumps(cue_data, ensure_ascii=False), encoding="utf-8"
+            )
+            (directory / "custom.srt").write_text("old\n", encoding="utf-8")
+            project_data = {
+                "schema_version": 1,
+                "name": "강의",
+                "slug": "lecture",
+                "created_at": "2026-01-01T00:00:00+09:00",
+                "audio": "lecture.mp3",
+                "cues": "lecture.json",
+                "subtitles": {"srt": "custom.srt"},
+                "cue_count": 1,
+                "duration": 4.0,
+                "meta": {"model": "base", "translator": "nllb"},
+            }
+            project_path = directory / "project.json"
+            project_path.write_text(
+                json.dumps(project_data, ensure_ascii=False), encoding="utf-8"
+            )
+            before = project_path.read_text(encoding="utf-8")
+
+            project = load_project(directory)
+            project.cues[0].end = 2.5
+            paths = save_project_cues(project)
+
+            self.assertIn(directory / "lecture.json", paths)
+            self.assertIn(directory / "custom.srt", paths)
+            self.assertEqual(project_path.read_text(encoding="utf-8"), before)
+
+            reloaded = load_project(directory)
+            self.assertAlmostEqual(reloaded.cues[0].end, 2.5)
+            self.assertEqual(reloaded.cues[0].translation, "안녕하세요.")
+            self.assertEqual(reloaded.meta.get("title"), "강의")
+            self.assertIn(
+                "00:00:00,000 --> 00:00:02,500",
+                (directory / "custom.srt").read_text(encoding="utf-8"),
+            )
+
+
+class TailFixTests(unittest.TestCase):
+    SAMPLE_RATE = 16_000
+
+    def _tone(self, seconds: float, amplitude: float = 0.2) -> np.ndarray:
+        count = int(round(seconds * self.SAMPLE_RATE))
+        t = np.arange(count, dtype=np.float64)
+        return (amplitude * np.sin(2 * np.pi * 440.0 * t / self.SAMPLE_RATE)).astype(
+            np.float32
+        )
+
+    def _audio(self) -> np.ndarray:
+        audio = np.zeros(int(9.0 * self.SAMPLE_RATE), dtype=np.float32)
+
+        def add(start: float, end: float) -> None:
+            a = int(start * self.SAMPLE_RATE)
+            b = int(end * self.SAMPLE_RATE)
+            audio[a:b] = self._tone((b - a) / self.SAMPLE_RATE)
+
+        add(0.10, 1.20)  # 1: 1.00에서 잘림
+        add(1.80, 2.30)  # 2: 종료 지점은 무음
+        add(2.90, 3.40)  # 3: 3.10에서 잘림
+        add(4.80, 5.20)  # 4: cue 구간 자체가 무음
+        add(5.60, 6.70)  # 5: 0.9초가 이어져 단순 꼬리로 보기 어려움
+        add(6.90, 7.20)  # 6: 무음 뒤 다른 발화
+        add(7.40, 7.70)
+        return audio
+
+    def test_only_short_speech_tails_are_extended(self) -> None:
+        cues = [
+            CueSpan(1, 0.10, 1.00),
+            CueSpan(2, 1.80, 2.50),
+            CueSpan(3, 2.90, 3.10),
+            CueSpan(4, 4.50, 4.80),
+            CueSpan(5, 5.60, 5.80),
+            CueSpan(6, 6.90, 7.20),
+        ]
+        fixes = analyze_tail_clipping(self._audio(), cues)
+        self.assertEqual([fix.index for fix in fixes], [1, 3])
+        self.assertAlmostEqual(fixes[0].new_end, 1.25, places=2)
+        self.assertAlmostEqual(fixes[1].new_end, 3.45, places=2)
+
+    def test_next_cue_start_is_never_crossed(self) -> None:
+        audio = np.zeros(int(3.0 * self.SAMPLE_RATE), dtype=np.float32)
+        audio[int(0.10 * self.SAMPLE_RATE) : int(1.80 * self.SAMPLE_RATE)] = (
+            self._tone(1.70)
+        )
+        cues = [CueSpan(1, 0.10, 1.00), CueSpan(2, 1.35, 1.80)]
+        fixes = analyze_tail_clipping(
+            audio, cues, config=TailFixConfig(max_extension=0.70)
+        )
+        self.assertEqual(len(fixes), 1)
+        self.assertAlmostEqual(fixes[0].new_end, 1.32, places=2)
 
 
 class ThemeTests(unittest.TestCase):
