@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import io
-import os
 import queue
 import re
 import shutil
@@ -919,7 +918,7 @@ class StudyApp(tk.Tk):
         )
         self.new_btn.pack(side="right", padx=6)
         ttk.Button(
-            buttons, text="프로젝트 폴더 열기", command=self._open_folder
+            buttons, text="프로젝트 열기", command=self._choose_project
         ).pack(side="right", padx=6)
         ttk.Button(
             buttons,
@@ -1447,25 +1446,15 @@ class StudyApp(tk.Tk):
 
     # -------------------------------------------------------------- project
 
-    def _open_folder(self) -> None:
-        if self.project is None:
-            messagebox.showinfo("프로젝트 없음", "먼저 MP3로 새 프로젝트를 만드세요.")
-            return
-        path = str(self.project.directory.resolve())
-        try:
-            if sys.platform.startswith("win"):
-                os.startfile(path)  # type: ignore[attr-defined]
-            elif sys.platform == "darwin":
-                subprocess.Popen(["open", path])
-            else:
-                subprocess.Popen(["xdg-open", path])
-        except Exception as exc:
-            messagebox.showerror("폴더 열기 실패", str(exc))
-
     def _choose_project(self) -> None:
+        initial = (
+            self.project.directory.parent
+            if self.project is not None
+            else default_project_root()
+        )
         path = filedialog.askdirectory(
             title="프로젝트 폴더 선택",
-            initialdir=str(default_project_root().resolve()),
+            initialdir=str(initial.resolve()),
         )
         if not path:
             return
