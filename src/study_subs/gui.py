@@ -720,6 +720,9 @@ class CueEditDialog(tk.Toplevel):
 
         body = tk.Frame(self, bg=colors["panel_bg"], padx=22, pady=18)
         body.pack(fill="both", expand=True)
+        body.columnconfigure(0, weight=1)
+        body.rowconfigure(1, weight=1)
+        body.rowconfigure(3, weight=1)
 
         self.english = self._add_field(
             body,
@@ -728,6 +731,8 @@ class CueEditDialog(tk.Toplevel):
             font=font_english,
             colors=colors,
             font_info=font_info,
+            height=5,
+            row=0,
         )
         self.korean = self._add_field(
             body,
@@ -736,10 +741,12 @@ class CueEditDialog(tk.Toplevel):
             font=font_korean,
             colors=colors,
             font_info=font_info,
+            height=5,
+            row=2,
         )
 
         footer = tk.Frame(body, bg=colors["panel_bg"])
-        footer.pack(fill="x")
+        footer.grid(row=4, column=0, sticky="ew")
         tk.Label(
             footer,
             text="Ctrl+Enter: 저장   ·   Esc: 취소",
@@ -759,7 +766,8 @@ class CueEditDialog(tk.Toplevel):
 
         self.update_idletasks()
         width = max(620, min(900, (master.winfo_width() or 720) - 160))
-        height = max(460, min(680, (master.winfo_height() or 620) - 120))
+        height = max(520, min(720, (master.winfo_height() or 620) - 80))
+        self.minsize(620, 520)
         x = master.winfo_rootx() + max(0, (master.winfo_width() - width) // 2)
         y = master.winfo_rooty() + max(0, (master.winfo_height() - height) // 3)
         self.geometry(f"{width}x{height}+{x}+{y}")
@@ -775,6 +783,8 @@ class CueEditDialog(tk.Toplevel):
         font: tuple,
         colors: dict[str, str],
         font_info: tuple,
+        height: int,
+        row: int,
     ) -> tk.Text:
         tk.Label(
             parent,
@@ -783,7 +793,7 @@ class CueEditDialog(tk.Toplevel):
             bg=colors["panel_bg"],
             fg=colors["text"],
             anchor="w",
-        ).pack(fill="x")
+        ).grid(row=row, column=0, sticky="ew")
 
         frame = tk.Frame(
             parent,
@@ -791,7 +801,7 @@ class CueEditDialog(tk.Toplevel):
             highlightbackground=colors["panel_border"],
             highlightthickness=1,
         )
-        frame.pack(fill="both", expand=True, pady=(6, 14))
+        frame.grid(row=row + 1, column=0, sticky="nsew", pady=(6, 14))
 
         scroll = ttk.Scrollbar(frame, orient="vertical")
         scroll.pack(side="right", fill="y")
@@ -803,6 +813,7 @@ class CueEditDialog(tk.Toplevel):
             highlightthickness=0,
             padx=10,
             pady=8,
+            height=height,
             font=font,
             bg=colors["input_bg"],
             fg=colors["input_fg"],
