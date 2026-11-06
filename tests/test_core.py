@@ -32,6 +32,11 @@ from study_subs.project import (  # noqa: E402
 from study_subs.sentences import build_cues, detect_language  # noqa: E402
 from study_subs.subtitles import format_mmss, format_srt_time, write_srt  # noqa: E402
 from study_subs.tail_fix import CueSpan, TailFixConfig, analyze_tail_clipping  # noqa: E402
+from study_subs.ui_state import (  # noqa: E402
+    STATE_FILE,
+    load_last_index,
+    save_last_index,
+)
 
 
 def seg(start: float, end: float, words: list[tuple[float, float, str]]) -> ASRSegment:
@@ -576,6 +581,48 @@ class ThemeTests(unittest.TestCase):
         self.assertEqual(set(LIGHT_THEME), set(DARK_THEME))
         self.assertIs(THEMES["light"], LIGHT_THEME)
         self.assertIs(THEMES["dark"], DARK_THEME)
+
+
+class UIStateTests(unittest.TestCase):
+    def test_last_index_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(load_last_index(tmp))
+            save_last_index(tmp, 7)
+            self.assertEqual(load_last_index(tmp), 7)
+            save_last_index(tmp, 3)
+            self.assertEqual(load_last_index(tmp), 3)
+
+    def test_state_is_per_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            first = Path(tmp) / "first"
+            second = Path(tmp) / "second"
+            first.mkdir()
+            second.mkdir()
+            save_last_index(first, 11)
+            save_last_index(second, 22)
+            self.assertEqual(load_last_index(first), 11)
+            self.assertEqual(load_last_index(second), 22)
+
+    def test_invalid_state_is_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / STATE_FILE
+            for text in (
+                "{broken",
+                "[]",
+                '{"last_index": "8"}',
+                '{"last_index": true}',
+                '{"last_index": -1}',
+            ):
+                path.write_text(text, encoding="utf-8")
+                self.assertIsNone(load_last_index(tmp), text)
+
+    def test_save_keeps_other_state_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / STATE_FILE
+            path.write_text('{"theme": "dark"}', encoding="utf-8")
+            save_last_index(tmp, 4)
+            data = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(data, {"theme": "dark", "last_index": 4})
 
 
 if __name__ == "__main__":

@@ -33,6 +33,7 @@ from .project import (
 )
 from .subtitles import format_mmss
 from .tail_fix import CueSpan, TailFix, analyze_tail_clipping
+from .ui_state import load_last_index, save_last_index
 
 
 LIGHT_THEME: dict[str, str] = {
@@ -728,6 +729,7 @@ class StudyApp(tk.Tk):
         self._tail_busy = False
         self._tail_queue: "queue.Queue[tuple[str, object]] | None" = None
         self._tail_project_dir: Path | None = None
+        self._state_after: str | None = None
 
         self.title(f"{project.name} — 영어 듣기 학습" if project else "영어 듣기 학습")
         self.geometry(self._center_geometry(1180, 760))
@@ -738,7 +740,7 @@ class StudyApp(tk.Tk):
         self._init_player()
         self._build_ui()
         self._bind_keys()
-        self._populate()
+        self._populate(self._saved_index(self.project))
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.cue_list.focus_set()
 
@@ -1142,6 +1144,43 @@ class StudyApp(tk.Tk):
     def _current_index(self) -> int | None:
         return self.cue_list.current_index()
 
+    @staticmethod
+    def _saved_index(project: Project | None) -> int | None:
+        if project is None:
+            return None
+        return load_last_index(project.directory)
+
+    def _schedule_save_position(self) -> None:
+        """선택이 바뀔 때마다 쓰지 않고 잠시 모았다가 저장합니다."""
+
+        if self.project is None:
+            return
+        if self._state_after is not None:
+            try:
+                self.after_cancel(self._state_after)
+            except Exception:
+                pass
+        self._state_after = self.after(400, self._save_position)
+
+    def _save_position(self) -> None:
+        self._state_after = None
+        if self.project is None:
+            return
+        index = self._current_index()
+        if index is not None:
+            save_last_index(self.project.directory, index)
+
+    def _flush_position(self) -> None:
+        """대기 중인 저장을 즉시 반영합니다."""
+
+        if self._state_after is not None:
+            try:
+                self.after_cancel(self._state_after)
+            except Exception:
+                pass
+            self._state_after = None
+        self._save_position()
+
     def _update_view(self) -> None:
         c = self.theme
         idx = self._current_index()
@@ -1192,6 +1231,7 @@ class StudyApp(tk.Tk):
 
     def _on_select(self, _index: int) -> None:
         self._update_view()
+        self._schedule_save_position()
 
     # ------------------------------------------------------------- playback
 
@@ -1590,16 +1630,19 @@ class StudyApp(tk.Tk):
             )
 
     def _set_project(self, project: Project) -> None:
+        # 프로젝트를 바꾸기 전에 현재 목록 위치를 확정해서 저장합니다.
+        self._flush_position()
         self._stop_playback(quiet=True)
         self.project = project
         self.show_korean = True
         self.mode_var.set("표시: 한영")
         self.header_name.set(project.name)
         self.header_sub.set(self._project_subtitle(project))
-        self._populate()
+        self._populate(self._saved_index(project))
         self.cue_list.focus_set()
 
     def _on_close(self) -> None:
+        self._flush_position()
         self._stop_playback(quiet=True)
         if self.player is not None:
             self.player.close()
