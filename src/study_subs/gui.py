@@ -909,6 +909,24 @@ class StudyApp(tk.Tk):
 
         header = tk.Frame(self, bg=c["header_bg"])
         header.pack(side="top", fill="x")
+
+        # 버튼 영역을 먼저 확보합니다. 프로젝트 이름이 길거나 창이 좁아도
+        # 오른쪽 버튼이 제목에 밀려서 잘리지 않게 하기 위함입니다.
+        buttons = tk.Frame(header, bg=c["header_bg"])
+        buttons.pack(side="right", padx=(0, 10), pady=12)
+        self.new_btn = ttk.Button(
+            buttons, text="+ MP3로 새 프로젝트", command=self._new_project
+        )
+        self.new_btn.pack(side="right", padx=6)
+        ttk.Button(
+            buttons, text="프로젝트 폴더 열기", command=self._open_folder
+        ).pack(side="right", padx=6)
+        ttk.Button(
+            buttons,
+            text=self._theme_button_text(),
+            command=self._toggle_theme,
+        ).pack(side="right", padx=6)
+
         self.header_name = tk.StringVar(
             value=self.project.name if self.project else "새 프로젝트"
         )
@@ -935,18 +953,6 @@ class StudyApp(tk.Tk):
             fg=c["header_sub"],
             anchor="w",
         ).pack(side="left", pady=(18, 2))
-        self.new_btn = ttk.Button(
-            header, text="+ MP3로 새 프로젝트", command=self._new_project
-        )
-        self.new_btn.pack(side="right", padx=(6, 16), pady=12)
-        ttk.Button(
-            header, text="프로젝트 폴더 열기", command=self._open_folder
-        ).pack(side="right", padx=(6, 6), pady=12)
-        ttk.Button(
-            header,
-            text=self._theme_button_text(),
-            command=self._toggle_theme,
-        ).pack(side="right", padx=(6, 6), pady=12)
 
         # 하단 바를 body보다 먼저 pack해야 창 높이가 줄어들 때도 보입니다.
         bar = tk.Frame(self, bg=c["bar_bg"])
