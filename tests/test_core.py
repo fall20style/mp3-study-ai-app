@@ -475,6 +475,8 @@ class ProjectTests(unittest.TestCase):
 
             project = load_project(directory)
             project.cues[0].end = 2.5
+            project.cues[0].text = "Hello, edited."
+            project.cues[0].translation = "안녕하세요, 수정."
             paths = save_project_cues(project)
 
             self.assertIn(directory / "lecture.json", paths)
@@ -483,12 +485,13 @@ class ProjectTests(unittest.TestCase):
 
             reloaded = load_project(directory)
             self.assertAlmostEqual(reloaded.cues[0].end, 2.5)
-            self.assertEqual(reloaded.cues[0].translation, "안녕하세요.")
+            self.assertEqual(reloaded.cues[0].text, "Hello, edited.")
+            self.assertEqual(reloaded.cues[0].translation, "안녕하세요, 수정.")
             self.assertEqual(reloaded.meta.get("title"), "강의")
-            self.assertIn(
-                "00:00:00,000 --> 00:00:02,500",
-                (directory / "custom.srt").read_text(encoding="utf-8"),
-            )
+            srt_text = (directory / "custom.srt").read_text(encoding="utf-8")
+            self.assertIn("00:00:00,000 --> 00:00:02,500", srt_text)
+            self.assertIn("Hello, edited.", srt_text)
+            self.assertIn("안녕하세요, 수정.", srt_text)
 
 
 class TailFixTests(unittest.TestCase):

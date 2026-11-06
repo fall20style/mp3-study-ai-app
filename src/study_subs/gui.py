@@ -695,6 +695,145 @@ class TailFixReport(tk.Toplevel):
         self.focus_set()
 
 
+class CueEditDialog(tk.Toplevel):
+    """선택한 문장의 영어 지문과 한국어 번역을 함께 수정합니다."""
+
+    def __init__(
+        self,
+        master: tk.Misc,
+        *,
+        english: str,
+        korean: str,
+        colors: dict[str, str],
+        font_english: tuple,
+        font_korean: tuple,
+        font_info: tuple,
+        font_small: tuple,
+    ) -> None:
+        super().__init__(master)
+        self.result: tuple[str, str] | None = None
+        self._colors = colors
+        self.title("문장 수정")
+        self.transient(master)
+        self.configure(bg=colors["panel_bg"])
+        self.resizable(True, True)
+
+        body = tk.Frame(self, bg=colors["panel_bg"], padx=22, pady=18)
+        body.pack(fill="both", expand=True)
+
+        self.english = self._add_field(
+            body,
+            "영어 지문",
+            english,
+            font=font_english,
+            colors=colors,
+            font_info=font_info,
+        )
+        self.korean = self._add_field(
+            body,
+            "한국어 번역",
+            korean,
+            font=font_korean,
+            colors=colors,
+            font_info=font_info,
+        )
+
+        footer = tk.Frame(body, bg=colors["panel_bg"])
+        footer.pack(fill="x")
+        tk.Label(
+            footer,
+            text="Ctrl+Enter: 저장   ·   Esc: 취소",
+            font=font_small,
+            bg=colors["panel_bg"],
+            fg=colors["hint"],
+            anchor="w",
+        ).pack(side="left")
+        ttk.Button(footer, text="취소", command=self._cancel).pack(side="right")
+        ttk.Button(footer, text="저장", command=self._save).pack(
+            side="right", padx=(0, 6)
+        )
+
+        self.bind("<Escape>", lambda _event: self._cancel())
+        self.bind("<Control-Return>", lambda _event: self._save())
+        self.protocol("WM_DELETE_WINDOW", self._cancel)
+
+        self.update_idletasks()
+        width = max(620, min(900, (master.winfo_width() or 720) - 160))
+        height = max(460, min(680, (master.winfo_height() or 620) - 120))
+        x = master.winfo_rootx() + max(0, (master.winfo_width() - width) // 2)
+        y = master.winfo_rooty() + max(0, (master.winfo_height() - height) // 3)
+        self.geometry(f"{width}x{height}+{x}+{y}")
+        self.grab_set()
+        self.english.focus_set()
+
+    def _add_field(
+        self,
+        parent: tk.Misc,
+        title: str,
+        value: str,
+        *,
+        font: tuple,
+        colors: dict[str, str],
+        font_info: tuple,
+    ) -> tk.Text:
+        tk.Label(
+            parent,
+            text=title,
+            font=font_info,
+            bg=colors["panel_bg"],
+            fg=colors["text"],
+            anchor="w",
+        ).pack(fill="x")
+
+        frame = tk.Frame(
+            parent,
+            bg=colors["panel_bg"],
+            highlightbackground=colors["panel_border"],
+            highlightthickness=1,
+        )
+        frame.pack(fill="both", expand=True, pady=(6, 14))
+
+        scroll = ttk.Scrollbar(frame, orient="vertical")
+        scroll.pack(side="right", fill="y")
+        text = tk.Text(
+            frame,
+            wrap="word",
+            bd=0,
+            relief="flat",
+            highlightthickness=0,
+            padx=10,
+            pady=8,
+            font=font,
+            bg=colors["input_bg"],
+            fg=colors["input_fg"],
+            insertbackground=colors["input_fg"],
+            selectbackground=colors["select_bg"],
+            selectforeground=colors["select_fg"],
+            yscrollcommand=scroll.set,
+        )
+        text.pack(side="left", fill="both", expand=True)
+        scroll.config(command=text.yview)
+        text.insert("1.0", value)
+        text.mark_set("insert", "end-1c")
+        return text
+
+    def _save(self) -> None:
+        english = self.english.get("1.0", "end-1c").strip()
+        if not english:
+            messagebox.showwarning(
+                "내용 없음", "영어 지문을 입력하세요.", parent=self
+            )
+            self.english.focus_set()
+            return
+        korean = self.korean.get("1.0", "end-1c").strip()
+        self.result = (english, korean)
+        self.destroy()
+
+    def _cancel(self) -> None:
+        self.result = None
+        self.destroy()
+
+
 def _format_seconds(seconds: float) -> str:
     total = max(0.0, float(seconds))
     minutes, secs = divmod(total, 60.0)
@@ -703,6 +842,10 @@ def _format_seconds(seconds: float) -> str:
 
 class StudyApp(tk.Tk):
     LEFT_WIDTH = 500
+    ENGLISH_MIN_LINES = 2
+    ENGLISH_MAX_LINES = 6
+    KOREAN_MIN_LINES = 1
+    KOREAN_MAX_LINES = 8
 
     def __init__(
         self,
@@ -729,6 +872,7 @@ class StudyApp(tk.Tk):
         self._tail_queue: "queue.Queue[tuple[str, object]] | None" = None
         self._tail_project_dir: Path | None = None
         self._state_after: str | None = None
+        self._fitting = False
 
         self.title(f"{project.name} — 영어 듣기 학습" if project else "영어 듣기 학습")
         self.geometry(self._center_geometry(1180, 760))
@@ -1054,40 +1198,30 @@ class StudyApp(tk.Tk):
         view.pack(fill="both", expand=True, padx=34, pady=26)
 
         self.info_var = tk.StringVar(value="문장을 선택하세요")
+        info_row = tk.Frame(view, bg=c["panel_bg"])
+        info_row.pack(fill="x")
+        self.edit_btn = ttk.Button(info_row, text="수정", command=self._edit_cue)
+        self.edit_btn.pack(side="right")
         tk.Label(
-            view,
+            info_row,
             textvariable=self.info_var,
             font=self.font_info,
             bg=c["panel_bg"],
             fg=c["muted"],
             anchor="w",
-        ).pack(fill="x")
+        ).pack(side="left", fill="x", expand=True)
 
         tk.Frame(view, bg=c["divider"], height=1).pack(fill="x", pady=(10, 22))
 
-        self.english_label = tk.Label(
-            view,
-            text="",
-            font=self.font_english,
-            bg=c["panel_bg"],
-            fg=c["text"],
-            justify="left",
-            anchor="nw",
-            wraplength=620,
+        self.english_text = self._make_display_text(
+            view, font=self.font_english, fg=c["text"]
         )
-        self.english_label.pack(fill="x", anchor="w")
+        self.english_text.pack(fill="x", anchor="w")
 
-        self.korean_label = tk.Label(
-            view,
-            text="",
-            font=self.font_korean,
-            bg=c["panel_bg"],
-            fg=c["muted"],
-            justify="left",
-            anchor="nw",
-            wraplength=620,
+        self.korean_text = self._make_display_text(
+            view, font=self.font_korean, fg=c["muted"]
         )
-        self.korean_label.pack(fill="x", anchor="w", pady=(18, 0))
+        self.korean_text.pack(fill="x", anchor="w", pady=(18, 0))
 
         tk.Frame(view, bg=c["panel_bg"]).pack(fill="both", expand=True)
         self.hint_label = tk.Label(
@@ -1105,6 +1239,89 @@ class StudyApp(tk.Tk):
         self.hint_label.pack(fill="x", side="bottom")
 
         view.bind("<Configure>", self._on_view_resize)
+
+    def _make_display_text(
+        self, parent: tk.Misc, *, font: tuple, fg: str
+    ) -> tk.Text:
+        """선택/복사는 되지만 직접 수정은 되지 않는 읽기 전용 Text."""
+
+        widget = tk.Text(
+            parent,
+            wrap="word",
+            bd=0,
+            relief="flat",
+            highlightthickness=0,
+            padx=0,
+            pady=0,
+            font=font,
+            bg=self.theme["panel_bg"],
+            fg=fg,
+            selectbackground=self.theme["select_bg"],
+            selectforeground=self.theme["select_fg"],
+            cursor="xterm",
+            height=1,
+        )
+        widget.configure(state="disabled")
+        self._bind_copy_menu(widget)
+        return widget
+
+    def _bind_copy_menu(self, widget: tk.Text) -> None:
+        menu = tk.Menu(
+            widget,
+            tearoff=0,
+            bg=self.theme["panel_bg"],
+            fg=self.theme["text"],
+            activebackground=self.theme["select_bg"],
+            activeforeground=self.theme["select_fg"],
+            bd=0,
+        )
+        menu.add_command(
+            label="복사", command=lambda: widget.event_generate("<<Copy>>")
+        )
+        menu.add_command(
+            label="모두 선택",
+            command=lambda: widget.tag_add("sel", "1.0", "end-1c"),
+        )
+        widget.bind(
+            "<Button-3>",
+            lambda event: menu.tk_popup(event.x_root, event.y_root),
+        )
+
+    def _set_display_text(
+        self,
+        widget: tk.Text,
+        value: str,
+        *,
+        min_lines: int,
+        max_lines: int,
+        fg: str,
+    ) -> None:
+        widget.configure(state="normal", fg=fg)
+        widget.delete("1.0", "end")
+        if value:
+            widget.insert("1.0", value)
+        widget.configure(state="disabled")
+        self._fit_display_text(widget, min_lines=min_lines, max_lines=max_lines)
+
+    def _fit_display_text(
+        self, widget: tk.Text, *, min_lines: int, max_lines: int
+    ) -> None:
+        if self._fitting:
+            return
+        if not widget.winfo_ismapped():
+            widget.configure(height=min_lines)
+            return
+        self._fitting = True
+        try:
+            widget.update_idletasks()
+            try:
+                counts = widget.count("1.0", "end-1c", "displaylines")
+                lines = int(counts[0]) if counts else min_lines
+            except (tk.TclError, TypeError, IndexError):
+                lines = min_lines
+            widget.configure(height=max(min_lines, min(max_lines, lines)))
+        finally:
+            self._fitting = False
 
     def _toggle_theme(self) -> str:
         index = self._current_index()
@@ -1193,14 +1410,24 @@ class StudyApp(tk.Tk):
             self.info_var.set(
                 "문장을 선택하세요" if self.project else "먼저 프로젝트를 만드세요"
             )
-            self.english_label.configure(text="", fg=c["text"])
-            self.korean_label.configure(
-                text=(
+            self.edit_btn.state(["disabled"])
+            self._set_display_text(
+                self.english_text,
+                "",
+                min_lines=self.ENGLISH_MIN_LINES,
+                max_lines=self.ENGLISH_MAX_LINES,
+                fg=c["text"],
+            )
+            self._set_display_text(
+                self.korean_text,
+                (
                     "오른쪽 위 [+ MP3로 새 프로젝트]를 눌러 MP3를 고르면\n"
                     "자막을 만들고 바로 공부할 수 있습니다."
                     if self.project is None
                     else ""
                 ),
+                min_lines=self.KOREAN_MIN_LINES,
+                max_lines=self.KOREAN_MAX_LINES,
                 fg=c["hint"],
             )
             return
@@ -1211,32 +1438,104 @@ class StudyApp(tk.Tk):
             f"문장 {cue.index:03d} / {len(self.project.cues):03d}"
             f"   ·   {format_mmss(cue.start)}–{format_mmss(cue.end)}{question}"
         )
+        self.edit_btn.state(["!disabled"])
 
         if cue.lang == "ko":
-            self.english_label.configure(text=cue.text, fg=c["korean"])
-            self.korean_label.configure(
-                text="한국어 안내 문장입니다.", fg=c["hint"]
+            self._set_display_text(
+                self.english_text,
+                cue.text,
+                min_lines=self.ENGLISH_MIN_LINES,
+                max_lines=self.ENGLISH_MAX_LINES,
+                fg=c["korean"],
+            )
+            self._set_display_text(
+                self.korean_text,
+                "한국어 안내 문장입니다.",
+                min_lines=self.KOREAN_MIN_LINES,
+                max_lines=self.KOREAN_MAX_LINES,
+                fg=c["hint"],
             )
             return
 
-        self.english_label.configure(text=cue.text, fg=c["text"])
+        self._set_display_text(
+            self.english_text,
+            cue.text,
+            min_lines=self.ENGLISH_MIN_LINES,
+            max_lines=self.ENGLISH_MAX_LINES,
+            fg=c["text"],
+        )
         if self.show_korean:
-            self.korean_label.configure(
-                text=cue.translation or "(번역 없음)", fg=c["muted"]
-            )
+            value = cue.translation or "(번역 없음)"
+            fg = c["muted"]
         else:
-            self.korean_label.configure(
-                text="한국어 번역 숨김  ·  Enter로 다시 표시", fg=c["hint"]
-            )
+            value = "한국어 번역 숨김  ·  Enter로 다시 표시"
+            fg = c["hint"]
+        self._set_display_text(
+            self.korean_text,
+            value,
+            min_lines=self.KOREAN_MIN_LINES,
+            max_lines=self.KOREAN_MAX_LINES,
+            fg=fg,
+        )
 
-    def _on_view_resize(self, event: tk.Event) -> None:
-        width = max(280, int(event.width) - 20)
-        self.english_label.configure(wraplength=width)
-        self.korean_label.configure(wraplength=width)
+    def _on_view_resize(self, _event: tk.Event) -> None:
+        self._fit_display_text(
+            self.english_text,
+            min_lines=self.ENGLISH_MIN_LINES,
+            max_lines=self.ENGLISH_MAX_LINES,
+        )
+        self._fit_display_text(
+            self.korean_text,
+            min_lines=self.KOREAN_MIN_LINES,
+            max_lines=self.KOREAN_MAX_LINES,
+        )
 
     def _on_select(self, _index: int) -> None:
         self._update_view()
         self._schedule_save_position()
+
+    def _edit_cue(self) -> None:
+        if self.project is None:
+            return
+        idx = self._current_index()
+        if idx is None:
+            return
+        cue = self.project.cues[idx]
+
+        dialog = CueEditDialog(
+            self,
+            english=cue.text,
+            korean=cue.translation,
+            colors=self.theme,
+            font_english=self.font_english,
+            font_korean=self.font_korean,
+            font_info=self.font_info,
+            font_small=self.font_small,
+        )
+        self.wait_window(dialog)
+        if dialog.result is None:
+            return
+
+        new_text, new_translation = dialog.result
+        if (new_text, new_translation) == (cue.text, cue.translation):
+            return
+
+        old_text, old_translation = cue.text, cue.translation
+        cue.text = new_text
+        cue.translation = new_translation
+        try:
+            save_project_cues(self.project)
+        except Exception as exc:  # noqa: BLE001 - 저장 실패를 사용자에게 알림
+            cue.text = old_text
+            cue.translation = old_translation
+            messagebox.showerror(
+                "저장 실패",
+                f"문장을 저장하지 못했습니다.\n{exc}",
+            )
+            return
+
+        self._update_view()
+        self.status_var.set(f"문장 {cue.index:03d} 수정 저장 완료")
 
     # ------------------------------------------------------------- playback
 
