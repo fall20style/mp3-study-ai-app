@@ -402,7 +402,10 @@ python -c "import torch; print(torch.__version__); print(torch.xpu.is_available(
 - `+cpu`가 붙어 있으면 XPU용 wheel이 아닙니다. 다시 설치하세요.
   `pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/xpu`
 - `torch.xpu.is_available()`이 `False`면 Intel 그래픽 드라이버를 최신 버전으로
-  업데이트하세요. (Windows: Intel Arc 드라이버 설치 프로그램)
+  업데이트하세요. PyTorch XPU는 **32.0.101.6647 이상**을 요구합니다.
+  Intel 공식 다운로드:
+  <https://www.intel.com/content/www/us/en/download/785597/intel-arc-graphics-windows.html>
+  (Arc A-Series와 Iris Xe 통합 드라이버입니다. 설치 후 재부팅하세요.)
 - GPU가 잡히면 `--device auto`(기본) 또는 `--device xpu`로 실행할 수 있습니다.
   `auto`는 XPU 장치가 여러 개면 이름에 `Arc`가 들어간 외장 GPU를 우선 선택합니다.
 - 노트북에 내장 그래픽(Iris Xe)과 Arc가 함께 있으면
