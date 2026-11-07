@@ -18,8 +18,10 @@ import time
 import tkinter as tk
 import traceback
 from pathlib import Path
-from tkinter import filedialog, font as tkfont, messagebox, ttk
+from tkinter import filedialog, font as tkfont, messagebox
 from typing import Callable
+
+import customtkinter as ctk
 
 from .audio import find_ffmpeg
 from .project import (
@@ -41,22 +43,29 @@ LIGHT_THEME: dict[str, str] = {
     "header_fg": "#f8fafc",
     "header_sub": "#94a3b8",
     "panel_bg": "#ffffff",
-    "panel_border": "#e2e8f0",
-    "text": "#1e293b",
-    "muted": "#64748b",
+    "panel_alt": "#f8fafc",
+    "panel_border": "#dbe3ee",
+    "text": "#0f172a",
+    "muted": "#475569",
     "hint": "#94a3b8",
-    "accent": "#1d4ed8",
+    "accent": "#2563eb",
+    "accent_hover": "#1d4ed8",
+    "accent_fg": "#ffffff",
     "question": "#1d4ed8",
     "korean": "#b45309",
     "select_bg": "#dbeafe",
     "select_fg": "#0f172a",
+    "row_hover": "#f1f5f9",
     "divider": "#e2e8f0",
-    "bar_bg": "#e2e8f0",
+    "bar_bg": "#ffffff",
     "bar_fg": "#475569",
     "button_bg": "#f8fafc",
     "button_fg": "#0f172a",
     "button_hover": "#e2e8f0",
     "button_border": "#cbd5e1",
+    "header_button_bg": "#1e293b",
+    "header_button_hover": "#334155",
+    "header_button_fg": "#e2e8f0",
     "input_bg": "#ffffff",
     "input_fg": "#0f172a",
     "note_bg": "#f8fafc",
@@ -71,22 +80,29 @@ DARK_THEME: dict[str, str] = {
     "header_fg": "#f8fafc",
     "header_sub": "#94a3b8",
     "panel_bg": "#0f172a",
+    "panel_alt": "#111c30",
     "panel_border": "#1e293b",
     "text": "#e2e8f0",
     "muted": "#94a3b8",
     "hint": "#64748b",
     "accent": "#60a5fa",
+    "accent_hover": "#3b82f6",
+    "accent_fg": "#08111f",
     "question": "#93c5fd",
     "korean": "#fbbf24",
     "select_bg": "#1e3a5f",
     "select_fg": "#f8fafc",
+    "row_hover": "#16233a",
     "divider": "#1e293b",
-    "bar_bg": "#111827",
+    "bar_bg": "#0b1220",
     "bar_fg": "#cbd5e1",
     "button_bg": "#1e293b",
     "button_fg": "#e2e8f0",
     "button_hover": "#334155",
     "button_border": "#334155",
+    "header_button_bg": "#1e293b",
+    "header_button_hover": "#334155",
+    "header_button_fg": "#e2e8f0",
     "input_bg": "#0b1220",
     "input_fg": "#e2e8f0",
     "note_bg": "#0b1220",
@@ -200,7 +216,7 @@ class SegmentPlayer:
             pass
 
 
-class CueList(tk.Frame):
+class CueList(ctk.CTkFrame):
     """문장 번호와 재생 구간만 보여 주는 스크롤 목록.
 
     영어 본문은 오른쪽 패널에서만 보여 주어 듣기 학습을 방해하지 않습니다.
@@ -216,23 +232,31 @@ class CueList(tk.Frame):
         on_select: "Callable[[int], None]",
         on_play: "Callable[[], None]",
     ) -> None:
-        super().__init__(master, bg=colors["panel_bg"])
+        super().__init__(master, fg_color=colors["panel_bg"], corner_radius=0)
         self._on_select = on_select
         self._on_play = on_play
         self._cues: list = []
         self._ranges: list[tuple[str, str]] = []
         self._current: int | None = None
+        self._hovered: int | None = None
 
-        scroll = ttk.Scrollbar(self, orient="vertical")
-        scroll.pack(side="right", fill="y")
+        scroll = ctk.CTkScrollbar(
+            self,
+            width=12,
+            fg_color=colors["panel_bg"],
+            button_color=colors["scrollbar_bg"],
+            button_hover_color=colors["scrollbar_active"],
+            command=self._scroll,
+        )
+        scroll.pack(side="right", fill="y", padx=(0, 6), pady=(2, 8))
         self.text = tk.Text(
             self,
             wrap="none",
             bd=0,
             relief="flat",
             highlightthickness=0,
-            padx=10,
-            pady=4,
+            padx=14,
+            pady=6,
             cursor="arrow",
             takefocus=1,
             font=font_body,
@@ -241,31 +265,38 @@ class CueList(tk.Frame):
             insertbackground=colors["text"],
             selectbackground=colors["select_bg"],
             selectforeground=colors["select_fg"],
-            spacing1=5,
-            spacing3=5,
+            spacing1=7,
+            spacing3=7,
             yscrollcommand=scroll.set,
         )
-        self.text.pack(side="left", fill="both", expand=True)
-        scroll.config(command=self.text.yview)
+        self.text.pack(side="left", fill="both", expand=True, padx=(6, 0), pady=(0, 4))
+        self._scrollbar = scroll
 
         self.text.tag_configure(
             "num", font=(font_head[0], font_head[1], "bold"), foreground=colors["accent"]
         )
         self.text.tag_configure("time", font=font_head, foreground=colors["muted"])
+        self.text.tag_configure("hover", background=colors["row_hover"])
         self.text.tag_configure(
             "current", background=colors["select_bg"], foreground=colors["select_fg"]
         )
+        self.text.tag_raise("hover")
         self.text.tag_raise("current")
         self.text.configure(state="disabled")
 
         self.text.bind("<Button-1>", self._on_click)
         self.text.bind("<Double-Button-1>", self._on_double)
+        self.text.bind("<Motion>", self._on_motion)
+        self.text.bind("<Leave>", lambda _e: self._clear_hover())
         self.text.bind("<Up>", lambda _e: self._move(-1))
         self.text.bind("<Down>", lambda _e: self._move(1))
         self.text.bind("<Prior>", lambda _e: self._move(-8))
         self.text.bind("<Next>", lambda _e: self._move(8))
         self.text.bind("<Home>", lambda _e: self._jump(0))
         self.text.bind("<End>", lambda _e: self._jump(len(self._cues) - 1))
+
+    def _scroll(self, *args: str) -> None:
+        self.text.yview(*args)
 
     # -- list-like API -----------------------------------------------------
 
@@ -274,13 +305,14 @@ class CueList(tk.Frame):
         widget.configure(state="normal")
         widget.delete("1.0", "end")
         self._ranges = []
+        self._hovered = None
         for i, cue in enumerate(self._cues):
             start = widget.index("end-1c")
             tags = (f"cue{i}",)
             widget.insert("end", f"{cue.index:03d}", ("num",) + tags)
             widget.insert(
                 "end",
-                f"  {format_mmss(cue.start)} - {format_mmss(cue.end)}",
+                f"    {format_mmss(cue.start)}  –  {format_mmss(cue.end)}",
                 ("time",) + tags,
             )
             line_end = widget.index("end-1c")
@@ -311,6 +343,23 @@ class CueList(tk.Frame):
         if see:
             widget.see(start)
             widget.xview_moveto(0)
+
+    def _clear_hover(self) -> None:
+        self._hovered = None
+        self.text.tag_remove("hover", "1.0", "end")
+
+    def _on_motion(self, event: tk.Event) -> None:
+        index = self._index_at(event.x, event.y)
+        if index == self._hovered:
+            return
+        self._clear_hover()
+        if index is None:
+            return
+        self._hovered = index
+        start, end = self._ranges[index]
+        self.text.tag_add("hover", start, end)
+        self.text.tag_raise("hover")
+        self.text.tag_raise("current")
 
     def select(self, index: int, *, see: bool = True) -> None:
         if not 0 <= index < len(self._cues):
@@ -351,7 +400,7 @@ class CueList(tk.Frame):
         return "break"
 
 
-class NewProjectDialog(tk.Toplevel):
+class NewProjectDialog(ctk.CTkToplevel):
     """MP3를 선택한 뒤 프로젝트 이름/모델을 정하는 작은 창."""
 
     def __init__(self, master: tk.Misc, audio_path: Path) -> None:
@@ -361,101 +410,137 @@ class NewProjectDialog(tk.Toplevel):
         self.resizable(False, False)
         self.transient(master)
         colors = getattr(master, "theme", LIGHT_THEME)
-        self.configure(bg=colors["panel_bg"])
+        family = tkfont.nametofont("TkDefaultFont").actual("family")
+        self.configure(fg_color=colors["panel_bg"])
 
-        body = tk.Frame(self, bg=colors["panel_bg"], padx=24, pady=20)
-        body.pack(fill="both", expand=True)
+        body = ctk.CTkFrame(self, fg_color=colors["panel_bg"], corner_radius=0)
+        body.pack(fill="both", expand=True, padx=24, pady=20)
 
-        tk.Label(
+        ctk.CTkLabel(
             body,
             text="MP3로 새 프로젝트",
-            font=(tkfont.nametofont("TkDefaultFont").actual("family"), 15, "bold"),
-            bg=colors["panel_bg"],
-            fg=colors["text"],
+            font=(family, 18, "bold"),
+            text_color=colors["text"],
             anchor="w",
         ).pack(fill="x")
-        tk.Label(
+        ctk.CTkLabel(
             body,
             text=audio_path.name,
-            font=(tkfont.nametofont("TkDefaultFont").actual("family"), 10),
-            bg=colors["panel_bg"],
-            fg=colors["muted"],
+            font=(family, 11),
+            text_color=colors["muted"],
             anchor="w",
         ).pack(fill="x", pady=(2, 16))
 
-        form = tk.Frame(body, bg=colors["panel_bg"])
+        form = ctk.CTkFrame(body, fg_color="transparent")
         form.pack(fill="x")
-        tk.Label(
+        form.columnconfigure(1, weight=1)
+        ctk.CTkLabel(
             form,
             text="프로젝트 이름",
-            bg=colors["panel_bg"],
-            fg=colors["text"],
+            font=(family, 11),
+            text_color=colors["text"],
             anchor="w",
-        ).grid(row=0, column=0, sticky="w", pady=(0, 6))
+        ).grid(row=0, column=0, sticky="w", pady=(0, 8))
         self.name_var = tk.StringVar(value=audio_path.stem)
-        entry = ttk.Entry(form, textvariable=self.name_var, width=36)
-        entry.grid(row=0, column=1, sticky="ew", padx=(14, 0), pady=(0, 6))
-        form.columnconfigure(1, weight=1)
+        entry = ctk.CTkEntry(
+            form,
+            textvariable=self.name_var,
+            height=36,
+            fg_color=colors["input_bg"],
+            border_color=colors["button_border"],
+            text_color=colors["input_fg"],
+            font=(family, 11),
+        )
+        entry.grid(row=0, column=1, sticky="ew", padx=(14, 0), pady=(0, 8))
 
-        tk.Label(
+        ctk.CTkLabel(
             form,
             text="Whisper 모델",
-            bg=colors["panel_bg"],
-            fg=colors["text"],
+            font=(family, 11),
+            text_color=colors["text"],
             anchor="w",
         ).grid(row=1, column=0, sticky="w", pady=6)
         self.model_var = tk.StringVar(value="small")
-        model_box = ttk.Combobox(
+        ctk.CTkOptionMenu(
             form,
-            textvariable=self.model_var,
-            values=("base", "small", "medium"),
-            state="readonly",
-            width=12,
-        )
-        model_box.grid(row=1, column=1, sticky="w", padx=(14, 0), pady=6)
+            variable=self.model_var,
+            values=["base", "small", "medium"],
+            width=140,
+            height=34,
+            fg_color=colors["input_bg"],
+            button_color=colors["button_bg"],
+            button_hover_color=colors["button_hover"],
+            text_color=colors["input_fg"],
+            dropdown_fg_color=colors["panel_bg"],
+            dropdown_text_color=colors["text"],
+            dropdown_hover_color=colors["select_bg"],
+            font=(family, 11),
+        ).grid(row=1, column=1, sticky="w", padx=(14, 0), pady=6)
 
-        tk.Label(
+        ctk.CTkLabel(
             form,
             text="번역",
-            bg=colors["panel_bg"],
-            fg=colors["text"],
+            font=(family, 11),
+            text_color=colors["text"],
             anchor="w",
         ).grid(row=2, column=0, sticky="w", pady=6)
-        tk.Label(
+        ctk.CTkLabel(
             form,
             text="NLLB (오프라인)  ·  Google 번역 사용 안 함",
-            bg=colors["panel_bg"],
-            fg=colors["accent"],
+            font=(family, 11),
+            text_color=colors["accent"],
             anchor="w",
         ).grid(row=2, column=1, sticky="w", padx=(14, 0), pady=6)
 
-        tk.Label(
-            body,
+        note_box = ctk.CTkFrame(
+            body, fg_color=colors["note_bg"], corner_radius=12
+        )
+        note_box.pack(fill="x", pady=(18, 14))
+        ctk.CTkLabel(
+            note_box,
             text=(
                 "NLLB 모델은 최초 1회만 내려받고(약 2.4GB) 이후 로컬 캐시를 재사용합니다.\n"
                 "CPU에서 small 모델은 22분 음원 기준 대략 15~20분, 번역에 몇 분 더 걸릴 수 있습니다."
             ),
-            font=(tkfont.nametofont("TkDefaultFont").actual("family"), 9),
-            bg=colors["note_bg"],
-            fg=colors["muted"],
+            font=(family, 10),
+            text_color=colors["muted"],
             justify="left",
             anchor="w",
-            padx=10,
-            pady=8,
-        ).pack(fill="x", pady=(18, 14))
+            wraplength=500,
+        ).pack(fill="x", padx=14, pady=10)
 
-        buttons = tk.Frame(body, bg=colors["panel_bg"])
+        buttons = ctk.CTkFrame(body, fg_color="transparent")
         buttons.pack(fill="x")
-        ttk.Button(buttons, text="취소", command=self.destroy).pack(side="right")
-        ttk.Button(buttons, text="만들기", command=self._ok).pack(
-            side="right", padx=(0, 8)
-        )
+        ctk.CTkButton(
+            buttons,
+            text="취소",
+            command=self.destroy,
+            width=100,
+            height=36,
+            fg_color=colors["button_bg"],
+            hover_color=colors["button_hover"],
+            border_width=1,
+            border_color=colors["button_border"],
+            text_color=colors["button_fg"],
+            font=(family, 11),
+        ).pack(side="right")
+        ctk.CTkButton(
+            buttons,
+            text="만들기",
+            command=self._ok,
+            width=110,
+            height=36,
+            fg_color=colors["accent"],
+            hover_color=colors["accent_hover"],
+            text_color=colors["accent_fg"],
+            font=(family, 11, "bold"),
+        ).pack(side="right", padx=(0, 8))
 
         self.bind("<Return>", lambda _e: self._ok())
         self.bind("<Escape>", lambda _e: self.destroy())
         self.grab_set()
         self.update_idletasks()
-        width = max(460, self.winfo_reqwidth())
+        width = max(520, self.winfo_reqwidth())
         height = self.winfo_reqheight()
         x = master.winfo_rootx() + max(0, (master.winfo_width() - width) // 2)
         y = master.winfo_rooty() + max(0, (master.winfo_height() - height) // 3)
@@ -473,7 +558,7 @@ class NewProjectDialog(tk.Toplevel):
         self.destroy()
 
 
-class ProgressDialog(tk.Toplevel):
+class ProgressDialog(ctk.CTkToplevel):
     """프로젝트 생성 진행률을 보여주는 창."""
 
     def __init__(self, master: tk.Misc, *, note: str) -> None:
@@ -482,60 +567,80 @@ class ProgressDialog(tk.Toplevel):
         self.resizable(False, False)
         self.transient(master)
         colors = getattr(master, "theme", LIGHT_THEME)
-        self.configure(bg=colors["panel_bg"])
+        family = tkfont.nametofont("TkDefaultFont").actual("family")
+        self.configure(fg_color=colors["panel_bg"])
         self.queue: "queue.Queue[tuple[str, tuple]]" = queue.Queue()
         self.cancel_event = threading.Event()
         self.started = time.time()
         self._closed = False
+        self._bar_running = False
 
-        body = tk.Frame(self, bg=colors["panel_bg"], padx=26, pady=22)
-        body.pack(fill="both", expand=True)
-        tk.Label(
+        body = ctk.CTkFrame(self, fg_color=colors["panel_bg"], corner_radius=0)
+        body.pack(fill="both", expand=True, padx=26, pady=22)
+        ctk.CTkLabel(
             body,
             text="프로젝트를 만들고 있습니다",
-            font=(tkfont.nametofont("TkDefaultFont").actual("family"), 15, "bold"),
-            bg=colors["panel_bg"],
-            fg=colors["text"],
+            font=(family, 18, "bold"),
+            text_color=colors["text"],
             anchor="w",
         ).pack(fill="x")
-        tk.Label(
+        self.note_var = tk.StringVar(value=note)
+        ctk.CTkLabel(
             body,
-            text=note,
-            font=(tkfont.nametofont("TkDefaultFont").actual("family"), 9),
-            bg=colors["panel_bg"],
-            fg=colors["muted"],
+            textvariable=self.note_var,
+            font=(family, 10),
+            text_color=colors["muted"],
             anchor="w",
             justify="left",
+            wraplength=500,
         ).pack(fill="x", pady=(4, 16))
 
         self.status_var = tk.StringVar(value="준비 중…")
-        tk.Label(
+        ctk.CTkLabel(
             body,
             textvariable=self.status_var,
-            font=(tkfont.nametofont("TkDefaultFont").actual("family"), 10),
-            bg=colors["panel_bg"],
-            fg=colors["text"],
+            font=(family, 11),
+            text_color=colors["text"],
             anchor="w",
         ).pack(fill="x")
-        self.bar = ttk.Progressbar(body, mode="determinate", maximum=100, length=460)
-        self.bar.pack(fill="x", pady=(8, 6))
+        self.bar = ctk.CTkProgressBar(
+            body,
+            height=10,
+            corner_radius=5,
+            fg_color=colors["input_bg"],
+            progress_color=colors["accent"],
+        )
+        self.bar.set(0)
+        self.bar.pack(fill="x", pady=(10, 10))
         self.elapsed_var = tk.StringVar(value="경과 00:00")
-        row = tk.Frame(body, bg=colors["panel_bg"])
+        row = ctk.CTkFrame(body, fg_color="transparent")
         row.pack(fill="x")
-        tk.Label(
+        ctk.CTkLabel(
             row,
             textvariable=self.elapsed_var,
-            font=(tkfont.nametofont("TkDefaultFont").actual("family"), 9),
-            bg=colors["panel_bg"],
-            fg=colors["hint"],
+            font=(family, 10),
+            text_color=colors["hint"],
+            anchor="w",
         ).pack(side="left")
-        self.cancel_btn = ttk.Button(row, text="취소", command=self.request_cancel)
+        self.cancel_btn = ctk.CTkButton(
+            row,
+            text="취소",
+            command=self.request_cancel,
+            width=100,
+            height=34,
+            fg_color=colors["button_bg"],
+            hover_color=colors["button_hover"],
+            border_width=1,
+            border_color=colors["button_border"],
+            text_color=colors["button_fg"],
+            font=(family, 11),
+        )
         self.cancel_btn.pack(side="right")
 
         self.protocol("WM_DELETE_WINDOW", self.request_cancel)
         self.grab_set()
         self.update_idletasks()
-        width = max(520, self.winfo_reqwidth())
+        width = max(560, self.winfo_reqwidth())
         height = self.winfo_reqheight()
         x = master.winfo_rootx() + max(0, (master.winfo_width() - width) // 2)
         y = master.winfo_rooty() + max(0, (master.winfo_height() - height) // 3)
@@ -545,23 +650,28 @@ class ProgressDialog(tk.Toplevel):
     def push(self, kind: str, payload: tuple) -> None:
         self.queue.put((kind, payload))
 
+    def set_note(self, text: str) -> None:
+        self.note_var.set(text)
+
     def set_progress(self, message: str, fraction: float | None) -> None:
         self.status_var.set(message)
         if fraction is None:
-            if str(self.bar.cget("mode")) != "indeterminate":
+            if not self._bar_running:
                 self.bar.configure(mode="indeterminate")
-                self.bar.start(14)
+                self.bar.start()
+                self._bar_running = True
             return
-        if str(self.bar.cget("mode")) != "determinate":
+        if self._bar_running:
             self.bar.stop()
             self.bar.configure(mode="determinate")
-        self.bar["value"] = max(0.0, min(100.0, fraction * 100.0))
+            self._bar_running = False
+        self.bar.set(max(0.0, min(1.0, fraction)))
 
     def request_cancel(self) -> None:
         if self.cancel_event.is_set():
             return
         self.cancel_event.set()
-        self.cancel_btn.state(["disabled"])
+        self.cancel_btn.configure(state="disabled")
         self.status_var.set("취소 요청됨 — 현재 단계가 끝나면 중단됩니다.")
 
     def _tick(self) -> None:
@@ -580,7 +690,7 @@ class ProgressDialog(tk.Toplevel):
         self.destroy()
 
 
-class TailFixReport(tk.Toplevel):
+class TailFixReport(ctk.CTkToplevel):
     """끝 잘림 보정 결과와 바뀐 문장 번호를 보여주는 창."""
 
     def __init__(
@@ -594,19 +704,18 @@ class TailFixReport(tk.Toplevel):
         colors = getattr(master, "theme", LIGHT_THEME)
         self.title("끝 잘림 보정 결과")
         self.transient(master)
-        self.configure(bg=colors["panel_bg"])
+        self.configure(fg_color=colors["panel_bg"])
         self.resizable(True, True)
 
-        body = tk.Frame(self, bg=colors["panel_bg"], padx=24, pady=20)
-        body.pack(fill="both", expand=True)
+        body = ctk.CTkFrame(self, fg_color=colors["panel_bg"], corner_radius=0)
+        body.pack(fill="both", expand=True, padx=24, pady=20)
 
         family = tkfont.nametofont("TkDefaultFont").actual("family")
-        tk.Label(
+        ctk.CTkLabel(
             body,
             text=f"끝이 잘린 문장 {len(fixes)}개를 보정했습니다",
-            font=(family, 14, "bold"),
-            bg=colors["panel_bg"],
-            fg=colors["text"],
+            font=(family, 16, "bold"),
+            text_color=colors["text"],
             anchor="w",
         ).pack(fill="x")
 
@@ -621,44 +730,28 @@ class TailFixReport(tk.Toplevel):
             )
         if saved is not None:
             note += f"\n저장 위치: {saved}"
-        tk.Label(
+        ctk.CTkLabel(
             body,
             text=note,
-            font=(family, 9),
-            bg=colors["panel_bg"],
-            fg=colors["muted"],
+            font=(family, 10),
+            text_color=colors["muted"],
             anchor="w",
             justify="left",
+            wraplength=640,
         ).pack(fill="x", pady=(4, 14))
 
-        frame = tk.Frame(
-            body,
-            bg=colors["panel_bg"],
-            highlightbackground=colors["panel_border"],
-            highlightthickness=1,
-        )
-        frame.pack(fill="both", expand=True)
-
-        scroll = ttk.Scrollbar(frame, orient="vertical")
-        scroll.pack(side="right", fill="y")
         mono = getattr(master, "font_list", (family, 10))
-        text = tk.Text(
-            frame,
+        text = ctk.CTkTextbox(
+            body,
             wrap="none",
-            bd=0,
-            relief="flat",
-            highlightthickness=0,
-            padx=10,
-            pady=8,
+            corner_radius=12,
+            border_width=1,
+            border_color=colors["panel_border"],
+            fg_color=colors["input_bg"],
+            text_color=colors["text"],
             font=mono,
-            bg=colors["input_bg"],
-            fg=colors["text"],
-            selectbackground=colors["select_bg"],
-            selectforeground=colors["select_fg"],
-            yscrollcommand=scroll.set,
         )
-        text.pack(side="left", fill="both", expand=True)
-        scroll.config(command=text.yview)
+        text.pack(fill="both", expand=True)
 
         lines: list[str] = []
         for fix in fixes:
@@ -679,9 +772,21 @@ class TailFixReport(tk.Toplevel):
         text.insert("1.0", "\n".join(lines))
         text.configure(state="disabled")
 
-        buttons = tk.Frame(body, bg=colors["panel_bg"])
+        buttons = ctk.CTkFrame(body, fg_color="transparent")
         buttons.pack(fill="x", pady=(14, 0))
-        ttk.Button(buttons, text="닫기", command=self.destroy).pack(side="right")
+        ctk.CTkButton(
+            buttons,
+            text="닫기",
+            command=self.destroy,
+            width=100,
+            height=36,
+            fg_color=colors["button_bg"],
+            hover_color=colors["button_hover"],
+            border_width=1,
+            border_color=colors["button_border"],
+            text_color=colors["button_fg"],
+            font=(family, 11),
+        ).pack(side="right")
 
         self.bind("<Escape>", lambda _event: self.destroy())
         self.protocol("WM_DELETE_WINDOW", self.destroy)
@@ -695,7 +800,7 @@ class TailFixReport(tk.Toplevel):
         self.focus_set()
 
 
-class CueEditDialog(tk.Toplevel):
+class CueEditDialog(ctk.CTkToplevel):
     """선택한 문장의 영어 지문과 한국어 번역을 함께 수정합니다."""
 
     def __init__(
@@ -715,11 +820,11 @@ class CueEditDialog(tk.Toplevel):
         self._colors = colors
         self.title("문장 수정")
         self.transient(master)
-        self.configure(bg=colors["panel_bg"])
+        self.configure(fg_color=colors["panel_bg"])
         self.resizable(True, True)
 
-        body = tk.Frame(self, bg=colors["panel_bg"], padx=22, pady=18)
-        body.pack(fill="both", expand=True)
+        body = ctk.CTkFrame(self, fg_color=colors["panel_bg"], corner_radius=0)
+        body.pack(fill="both", expand=True, padx=22, pady=18)
         body.columnconfigure(0, weight=1)
         body.rowconfigure(1, weight=1)
         body.rowconfigure(3, weight=1)
@@ -731,7 +836,6 @@ class CueEditDialog(tk.Toplevel):
             font=font_english,
             colors=colors,
             font_info=font_info,
-            height=5,
             row=0,
         )
         self.korean = self._add_field(
@@ -741,24 +845,42 @@ class CueEditDialog(tk.Toplevel):
             font=font_korean,
             colors=colors,
             font_info=font_info,
-            height=5,
             row=2,
         )
 
-        footer = tk.Frame(body, bg=colors["panel_bg"])
+        footer = ctk.CTkFrame(body, fg_color="transparent")
         footer.grid(row=4, column=0, sticky="ew")
-        tk.Label(
+        ctk.CTkLabel(
             footer,
             text="Ctrl+Enter: 저장   ·   Esc: 취소",
             font=font_small,
-            bg=colors["panel_bg"],
-            fg=colors["hint"],
+            text_color=colors["hint"],
             anchor="w",
         ).pack(side="left")
-        ttk.Button(footer, text="취소", command=self._cancel).pack(side="right")
-        ttk.Button(footer, text="저장", command=self._save).pack(
-            side="right", padx=(0, 6)
-        )
+        ctk.CTkButton(
+            footer,
+            text="취소",
+            command=self._cancel,
+            width=100,
+            height=36,
+            fg_color=colors["button_bg"],
+            hover_color=colors["button_hover"],
+            border_width=1,
+            border_color=colors["button_border"],
+            text_color=colors["button_fg"],
+            font=font_small,
+        ).pack(side="right")
+        ctk.CTkButton(
+            footer,
+            text="저장",
+            command=self._save,
+            width=100,
+            height=36,
+            fg_color=colors["accent"],
+            hover_color=colors["accent_hover"],
+            text_color=colors["accent_fg"],
+            font=font_small,
+        ).pack(side="right", padx=(0, 8))
 
         self.bind("<Escape>", lambda _event: self._cancel())
         self.bind("<Control-Return>", lambda _event: self._save())
@@ -783,47 +905,45 @@ class CueEditDialog(tk.Toplevel):
         font: tuple,
         colors: dict[str, str],
         font_info: tuple,
-        height: int,
         row: int,
-    ) -> tk.Text:
-        tk.Label(
+    ) -> ctk.CTkTextbox:
+        ctk.CTkLabel(
             parent,
             text=title,
             font=font_info,
-            bg=colors["panel_bg"],
-            fg=colors["text"],
+            text_color=colors["text"],
             anchor="w",
         ).grid(row=row, column=0, sticky="ew")
 
-        frame = tk.Frame(
+        frame = ctk.CTkFrame(
             parent,
-            bg=colors["panel_bg"],
-            highlightbackground=colors["panel_border"],
-            highlightthickness=1,
+            fg_color=colors["input_bg"],
+            corner_radius=12,
+            border_width=1,
+            border_color=colors["panel_border"],
         )
         frame.grid(row=row + 1, column=0, sticky="nsew", pady=(6, 14))
 
-        scroll = ttk.Scrollbar(frame, orient="vertical")
-        scroll.pack(side="right", fill="y")
-        text = tk.Text(
+        text = ctk.CTkTextbox(
             frame,
             wrap="word",
-            bd=0,
-            relief="flat",
-            highlightthickness=0,
-            padx=10,
-            pady=8,
-            height=height,
+            height=120,
+            corner_radius=10,
+            border_width=0,
+            fg_color=colors["input_bg"],
+            text_color=colors["input_fg"],
+            scrollbar_button_color=colors["scrollbar_bg"],
+            scrollbar_button_hover_color=colors["scrollbar_active"],
             font=font,
-            bg=colors["input_bg"],
-            fg=colors["input_fg"],
+        )
+        text.pack(fill="both", expand=True, padx=8, pady=8)
+        text._textbox.configure(
+            padx=4,
+            pady=4,
             insertbackground=colors["input_fg"],
             selectbackground=colors["select_bg"],
             selectforeground=colors["select_fg"],
-            yscrollcommand=scroll.set,
         )
-        text.pack(side="left", fill="both", expand=True)
-        scroll.config(command=text.yview)
         text.insert("1.0", value)
         text.mark_set("insert", "end-1c")
         return text
@@ -851,7 +971,7 @@ def _format_seconds(seconds: float) -> str:
     return f"{int(minutes):02d}:{secs:05.2f}"
 
 
-class StudyApp(tk.Tk):
+class StudyApp(ctk.CTk):
     LEFT_WIDTH = 500
     ENGLISH_MIN_LINES = 2
     ENGLISH_MAX_LINES = 6
@@ -874,6 +994,7 @@ class StudyApp(tk.Tk):
             self.projects = [project] if project is not None else []
         self.theme_name = theme if theme in THEMES else "light"
         self.theme = THEMES[self.theme_name]
+        ctk.set_appearance_mode(self.theme_name)
         self.show_korean = True
         self.playing_index: int | None = None
         self._stop_after: str | None = None
@@ -888,7 +1009,7 @@ class StudyApp(tk.Tk):
         self.title(f"{project.name} — 영어 듣기 학습" if project else "영어 듣기 학습")
         self.geometry(self._center_geometry(1180, 760))
         self.minsize(900, 560)
-        self.configure(bg=self.theme["window"])
+        self.configure(fg_color=self.theme["window"])
 
         self._init_fonts()
         self._init_player()
@@ -928,12 +1049,12 @@ class StudyApp(tk.Tk):
             (f for f in ("Consolas", "Menlo", "DejaVu Sans Mono", "Courier New") if f in families),
             body,
         )
-        self.font_title = (korean, 19, "bold")
+        self.font_title = (korean, 20, "bold")
         self.font_sub = (korean, 10)
         self.font_list = (mono, 10)
-        self.font_card = (korean, 11)
-        self.font_english = (body, 20)
-        self.font_korean = (korean, 14)
+        self.font_card = (korean, 12)
+        self.font_english = (body, 21)
+        self.font_korean = (korean, 15)
         self.font_small = (korean, 10)
         self.font_info = (korean, 11, "bold")
 
@@ -944,255 +1065,230 @@ class StudyApp(tk.Tk):
             self._player_error = str(exc)
             self.player = None
 
-    def _configure_ttk(self) -> None:
-        style = ttk.Style(self)
-        try:
-            style.theme_use("clam")
-        except tk.TclError:
-            pass
-        c = self.theme
-        style.configure(
-            "TButton",
-            font=(self.font_small[0], 10),
-            padding=(12, 6),
-            background=c["button_bg"],
-            foreground=c["button_fg"],
-            bordercolor=c["button_border"],
-            lightcolor=c["button_bg"],
-            darkcolor=c["button_bg"],
-            focuscolor=c["accent"],
-        )
-        style.map(
-            "TButton",
-            background=[
-                ("disabled", c["button_bg"]),
-                ("pressed", c["button_hover"]),
-                ("active", c["button_hover"]),
-            ],
-            foreground=[("disabled", c["hint"]), ("active", c["button_fg"])],
-            bordercolor=[("active", c["accent"])],
-        )
-        style.configure(
-            "TEntry",
-            fieldbackground=c["input_bg"],
-            foreground=c["input_fg"],
-            insertcolor=c["input_fg"],
-            bordercolor=c["button_border"],
-            lightcolor=c["button_border"],
-            darkcolor=c["button_border"],
-            padding=(6, 5),
-        )
-        style.map(
-            "TEntry",
-            fieldbackground=[
-                ("disabled", c["window"]),
-                ("readonly", c["input_bg"]),
-            ],
-            foreground=[("disabled", c["hint"])],
-            bordercolor=[("focus", c["accent"])],
-        )
-        style.configure(
-            "TCombobox",
-            fieldbackground=c["input_bg"],
-            background=c["button_bg"],
-            foreground=c["input_fg"],
-            arrowcolor=c["muted"],
-            bordercolor=c["button_border"],
-            lightcolor=c["button_border"],
-            darkcolor=c["button_border"],
-            padding=(6, 4),
-        )
-        style.map(
-            "TCombobox",
-            fieldbackground=[
-                ("readonly", c["input_bg"]),
-                ("disabled", c["window"]),
-            ],
-            foreground=[("readonly", c["input_fg"]), ("disabled", c["hint"])],
-            background=[("active", c["button_hover"])],
-            selectbackground=[("readonly", c["select_bg"])],
-            selectforeground=[("readonly", c["select_fg"])],
-            arrowcolor=[("active", c["text"])],
-        )
-        style.configure(
-            "TProgressbar",
-            background=c["accent"],
-            troughcolor=c["input_bg"],
-            bordercolor=c["panel_border"],
-            lightcolor=c["accent"],
-            darkcolor=c["accent"],
-            thickness=8,
-        )
-        style.configure(
-            "TScrollbar",
-            background=c["scrollbar_bg"],
-            troughcolor=c["scrollbar_trough"],
-            bordercolor=c["panel_border"],
-            arrowcolor=c["muted"],
-            gripcount=0,
-        )
-        style.map(
-            "TScrollbar",
-            background=[("active", c["scrollbar_active"]), ("pressed", c["accent"])],
-        )
-        style.configure(
-            "TCheckbutton",
-            background=c["panel_bg"],
-            foreground=c["text"],
-            focuscolor=c["accent"],
-        )
-        style.map(
-            "TCheckbutton",
-            background=[("active", c["panel_bg"])],
-            foreground=[("disabled", c["hint"])],
-        )
-        for option, value in (
-            ("background", c["input_bg"]),
-            ("foreground", c["input_fg"]),
-            ("selectBackground", c["select_bg"]),
-            ("selectForeground", c["select_fg"]),
-        ):
-            self.option_add(f"*TCombobox*Listbox.{option}", value)
-
     def _theme_button_text(self) -> str:
         return "라이트" if self.theme_name == "dark" else "다크"
 
+    def _make_header_button(
+        self,
+        parent: tk.Misc,
+        text: str,
+        command: Callable[[], object],
+        *,
+        width: int = 120,
+    ) -> ctk.CTkButton:
+        c = self.theme
+        return ctk.CTkButton(
+            parent,
+            text=text,
+            command=command,
+            width=width,
+            height=36,
+            corner_radius=10,
+            fg_color=c["header_button_bg"],
+            hover_color=c["header_button_hover"],
+            border_width=1,
+            border_color=c["header_button_hover"],
+            text_color=c["header_button_fg"],
+            font=(self.font_small[0], 10, "bold"),
+        )
+
+    def _make_bar_button(
+        self,
+        parent: tk.Misc,
+        text: str,
+        command: Callable[[], object],
+        *,
+        width: int = 110,
+    ) -> ctk.CTkButton:
+        c = self.theme
+        return ctk.CTkButton(
+            parent,
+            text=text,
+            command=command,
+            width=width,
+            height=36,
+            corner_radius=10,
+            fg_color=c["button_bg"],
+            hover_color=c["button_hover"],
+            border_width=1,
+            border_color=c["button_border"],
+            text_color=c["button_fg"],
+            font=(self.font_small[0], 10),
+        )
+
     def _build_ui(self) -> None:
         c = self.theme
-        self._configure_ttk()
+        family = self.font_small[0]
 
-        header = tk.Frame(self, bg=c["header_bg"])
+        header = ctk.CTkFrame(self, fg_color=c["header_bg"], corner_radius=0)
         header.pack(side="top", fill="x")
 
-        # 버튼 영역을 먼저 확보합니다. 프로젝트 이름이 길거나 창이 좁아도
-        # 오른쪽 버튼이 제목에 밀려서 잘리지 않게 하기 위함입니다.
-        buttons = tk.Frame(header, bg=c["header_bg"])
-        buttons.pack(side="right", padx=(0, 10), pady=12)
-        self.new_btn = ttk.Button(
-            buttons, text="+ MP3로 새 프로젝트", command=self._new_project
+        # ?? ??? ?? ?????. ???? ??? ??? ?? ???
+        # ??? ??? ??? ??? ??? ?? ?? ?????.
+        actions = ctk.CTkFrame(header, fg_color="transparent")
+        actions.pack(side="right", padx=(0, 16), pady=14)
+        self.new_btn = self._make_header_button(
+            actions,
+            "+ MP3? ? ????",
+            self._new_project,
+            width=174,
         )
-        self.new_btn.pack(side="right", padx=6)
-        ttk.Button(
-            buttons, text="프로젝트 열기", command=self._choose_project
-        ).pack(side="right", padx=6)
-        ttk.Button(
-            buttons,
-            text=self._theme_button_text(),
-            command=self._toggle_theme,
-        ).pack(side="right", padx=6)
+        self.new_btn.pack(side="right")
+        self._make_header_button(
+            actions, "???? ??", self._choose_project, width=124
+        ).pack(side="right", padx=(8, 0))
+        self._make_header_button(
+            actions, self._theme_button_text(), self._toggle_theme, width=76
+        ).pack(side="right", padx=(8, 0))
 
+        title_box = ctk.CTkFrame(header, fg_color="transparent")
+        title_box.pack(side="left", fill="x", expand=True, padx=(24, 12), pady=14)
         self.header_name = tk.StringVar(
-            value=self.project.name if self.project else "새 프로젝트"
+            value=self.project.name if self.project else "? ????"
         )
-        tk.Label(
-            header,
+        ctk.CTkLabel(
+            title_box,
             textvariable=self.header_name,
             font=self.font_title,
-            bg=c["header_bg"],
-            fg=c["header_fg"],
+            text_color=c["header_fg"],
             anchor="w",
-        ).pack(side="left", padx=(22, 12), pady=(14, 2))
+        ).pack(fill="x")
         self.header_sub = tk.StringVar(
             value=(
                 self._project_subtitle(self.project)
                 if self.project
-                else "오른쪽 위 [+ MP3로 새 프로젝트]를 눌러 시작하세요"
+                else "??? ? [+ MP3? ? ????]? ?? ?????"
             )
         )
-        tk.Label(
-            header,
+        ctk.CTkLabel(
+            title_box,
             textvariable=self.header_sub,
             font=self.font_sub,
-            bg=c["header_bg"],
-            fg=c["header_sub"],
+            text_color=c["header_sub"],
             anchor="w",
-        ).pack(side="left", pady=(18, 2))
+        ).pack(fill="x", pady=(2, 0))
 
-        # 하단 바를 body보다 먼저 pack해야 창 높이가 줄어들 때도 보입니다.
-        bar = tk.Frame(self, bg=c["bar_bg"])
+        # ?? ?? body?? ?? pack?? ? ??? ??? ?? ????.
+        bar = ctk.CTkFrame(self, fg_color=c["bar_bg"], corner_radius=0)
         bar.pack(side="bottom", fill="x")
-        self.play_btn = ttk.Button(bar, text="▶ 재생 (Space)", command=self._play_selected)
-        self.play_btn.pack(side="left", padx=(16, 6), pady=8)
-        ttk.Button(bar, text="■ 정지 (Esc)", command=self._stop_playback).pack(
-            side="left", padx=6, pady=8
+        ctk.CTkFrame(
+            self, fg_color=c["panel_border"], height=1, corner_radius=0
+        ).pack(side="bottom", fill="x")
+        bar_inner = ctk.CTkFrame(bar, fg_color="transparent")
+        bar_inner.pack(fill="x", padx=16, pady=8)
+
+        self.play_btn = ctk.CTkButton(
+            bar_inner,
+            text="?  ?? (Space)",
+            command=self._play_selected,
+            width=154,
+            height=36,
+            corner_radius=10,
+            fg_color=c["accent"],
+            hover_color=c["accent_hover"],
+            text_color=c["accent_fg"],
+            font=(family, 10, "bold"),
         )
-        ttk.Button(bar, text="이전 문장", command=lambda: self._step(-1)).pack(
-            side="left", padx=(18, 6), pady=8
+        self.play_btn.pack(side="left")
+        self._make_bar_button(
+            bar_inner, "?  ?? (Esc)", self._stop_playback, width=128
+        ).pack(side="left", padx=(8, 0))
+        self._make_bar_button(
+            bar_inner, "?? ??", lambda: self._step(-1), width=100
+        ).pack(side="left", padx=(18, 0))
+        self._make_bar_button(
+            bar_inner, "?? ??", lambda: self._step(1), width=100
+        ).pack(side="left", padx=8)
+        self.tail_btn = self._make_bar_button(
+            bar_inner, "? ?? ??", self._fix_tail_clipping, width=120
         )
-        ttk.Button(bar, text="다음 문장", command=lambda: self._step(1)).pack(
-            side="left", padx=6, pady=8
-        )
-        self.tail_btn = ttk.Button(
-            bar, text="끝 잘림 보정", command=self._fix_tail_clipping
-        )
-        self.tail_btn.pack(side="left", padx=(18, 6), pady=8)
+        self.tail_btn.pack(side="left", padx=(18, 0))
         if self._tail_busy:
-            self.tail_btn.state(["disabled"])
+            self.tail_btn.configure(state="disabled")
+
         self.mode_var = tk.StringVar(
-            value="표시: 한영" if self.show_korean else "표시: 영어만"
+            value="??: ??" if self.show_korean else "??: ???"
         )
-        tk.Label(
-            bar,
+        ctk.CTkLabel(
+            bar_inner,
             textvariable=self.mode_var,
             font=self.font_small,
-            bg=c["bar_bg"],
-            fg=c["bar_fg"],
+            fg_color=c["panel_alt"],
+            corner_radius=8,
+            height=28,
+            width=96,
+            text_color=c["bar_fg"],
         ).pack(side="left", padx=18)
 
-        self.status_var = tk.StringVar(value="준비됨")
-        tk.Label(
-            bar,
+        self.status_var = tk.StringVar(value="???")
+        ctk.CTkLabel(
+            bar_inner,
             textvariable=self.status_var,
             font=self.font_small,
-            bg=c["bar_bg"],
-            fg=c["bar_fg"],
+            text_color=c["bar_fg"],
             anchor="e",
-        ).pack(side="right", padx=16)
+        ).pack(side="right", padx=(12, 0))
 
         if self._player_error:
-            self.status_var.set("오디오 재생 불가")
-            self.play_btn.state(["disabled"])
+            self.status_var.set("??? ?? ??")
+            self.play_btn.configure(state="disabled")
 
-        body = tk.Frame(self, bg=c["window"])
-        body.pack(side="top", fill="both", expand=True, padx=14, pady=12)
+        body = ctk.CTkFrame(self, fg_color="transparent")
+        body.pack(side="top", fill="both", expand=True, padx=16, pady=(14, 12))
 
         paned = tk.PanedWindow(
-            body, orient="horizontal", sashwidth=8, bg=c["window"], bd=0
+            body,
+            orient="horizontal",
+            sashwidth=12,
+            bg=c["window"],
+            bd=0,
+            relief="flat",
+            sashrelief="flat",
         )
         paned.pack(fill="both", expand=True)
 
-        left = tk.Frame(
+        left = ctk.CTkFrame(
             paned,
-            bg=c["panel_bg"],
-            highlightbackground=c["panel_border"],
-            highlightthickness=1,
+            fg_color=c["panel_bg"],
+            bg_color=c["window"],
+            corner_radius=16,
+            border_width=1,
+            border_color=c["panel_border"],
         )
-        right = tk.Frame(
+        right = ctk.CTkFrame(
             paned,
-            bg=c["panel_bg"],
-            highlightbackground=c["panel_border"],
-            highlightthickness=1,
+            fg_color=c["panel_bg"],
+            bg_color=c["window"],
+            corner_radius=16,
+            border_width=1,
+            border_color=c["panel_border"],
         )
         paned.add(left, minsize=340, width=self.LEFT_WIDTH)
         paned.add(right, minsize=420, width=680)
 
         # left: sentence list
-        list_head = tk.Frame(left, bg=c["panel_bg"])
-        list_head.pack(fill="x", padx=16, pady=(14, 6))
-        tk.Label(
+        list_head = ctk.CTkFrame(left, fg_color="transparent")
+        list_head.pack(fill="x", padx=18, pady=(16, 8))
+        ctk.CTkLabel(
             list_head,
-            text="문장 목록",
-            font=(self.font_info[0], 12, "bold"),
-            bg=c["panel_bg"],
-            fg=c["text"],
+            text="?? ??",
+            font=(family, 13, "bold"),
+            text_color=c["text"],
+            anchor="w",
         ).pack(side="left")
-        tk.Label(
+        ctk.CTkLabel(
             list_head,
-            text="Space 재생",
-            font=self.font_small,
-            bg=c["panel_bg"],
-            fg=c["hint"],
+            text="SPACE  ??",
+            font=(family, 9, "bold"),
+            fg_color=c["panel_alt"],
+            corner_radius=7,
+            height=24,
+            width=86,
+            text_color=c["hint"],
         ).pack(side="right")
+        ctk.CTkFrame(
+            left, fg_color=c["divider"], height=1, corner_radius=0
+        ).pack(fill="x", padx=18)
 
         self.cue_list = CueList(
             left,
@@ -1202,27 +1298,41 @@ class StudyApp(tk.Tk):
             on_select=self._on_select,
             on_play=self._play_selected,
         )
-        self.cue_list.pack(fill="both", expand=True, padx=(12, 8), pady=(0, 12))
+        self.cue_list.pack(fill="both", expand=True, padx=(8, 8), pady=(6, 12))
 
         # right: study view
-        view = tk.Frame(right, bg=c["panel_bg"])
-        view.pack(fill="both", expand=True, padx=34, pady=26)
+        view = ctk.CTkFrame(right, fg_color="transparent")
+        view.pack(fill="both", expand=True, padx=30, pady=(22, 18))
 
-        self.info_var = tk.StringVar(value="문장을 선택하세요")
-        info_row = tk.Frame(view, bg=c["panel_bg"])
+        self.info_var = tk.StringVar(value="??? ?????")
+        info_row = ctk.CTkFrame(view, fg_color="transparent")
         info_row.pack(fill="x")
-        self.edit_btn = ttk.Button(info_row, text="수정", command=self._edit_cue)
+        self.edit_btn = ctk.CTkButton(
+            info_row,
+            text="??",
+            command=self._edit_cue,
+            width=72,
+            height=32,
+            corner_radius=9,
+            fg_color=c["button_bg"],
+            hover_color=c["button_hover"],
+            border_width=1,
+            border_color=c["button_border"],
+            text_color=c["button_fg"],
+            font=(family, 10, "bold"),
+        )
         self.edit_btn.pack(side="right")
-        tk.Label(
+        ctk.CTkLabel(
             info_row,
             textvariable=self.info_var,
             font=self.font_info,
-            bg=c["panel_bg"],
-            fg=c["muted"],
+            text_color=c["muted"],
             anchor="w",
-        ).pack(side="left", fill="x", expand=True)
+        ).pack(side="left", fill="x", expand=True, padx=(0, 10))
 
-        tk.Frame(view, bg=c["divider"], height=1).pack(fill="x", pady=(10, 22))
+        ctk.CTkFrame(
+            view, fg_color=c["divider"], height=1, corner_radius=0
+        ).pack(fill="x", pady=(12, 20))
 
         self.english_text = self._make_display_text(
             view, font=self.font_english, fg=c["text"]
@@ -1234,51 +1344,72 @@ class StudyApp(tk.Tk):
         )
         self.korean_text.pack(fill="x", anchor="w", pady=(18, 0))
 
-        tk.Frame(view, bg=c["panel_bg"]).pack(fill="both", expand=True)
-        self.hint_label = tk.Label(
+        self.hint_label = ctk.CTkLabel(
             view,
             text=(
-                "Space: 재생/정지   ·   Enter: 한영 전환\n"
-                "j/k: 위/아래 이동 + 재생   ·   Esc: 정지   ·   Ctrl+D: 테마"
+                "Space: ??/??   ?   Enter: ?? ??\n"
+                "j/k: ?/?? ?? + ??   ?   Esc: ??   ?   Ctrl+D: ??"
             ),
             font=self.font_small,
-            bg=c["panel_bg"],
-            fg=c["hint"],
+            text_color=c["hint"],
             anchor="w",
             justify="left",
         )
-        self.hint_label.pack(fill="x", side="bottom")
+        self.hint_label.pack(fill="x", side="bottom", pady=(18, 0))
+        ctk.CTkFrame(view, fg_color="transparent").pack(
+            fill="both", expand=True
+        )
 
         view.bind("<Configure>", self._on_view_resize)
 
+    @staticmethod
+    def _text_inner(widget: tk.Misc) -> tk.Text:
+        """CTkTextbox ??? ?? tk.Text? ?????."""
+
+        return getattr(widget, "_textbox", widget)
+
+    def _display_line_height(self, widget: tk.Misc) -> int:
+        inner = self._text_inner(widget)
+        try:
+            font = tkfont.Font(font=inner.cget("font"))
+            return max(1, int(font.metrics("linespace")))
+        except (tk.TclError, TypeError, ValueError):
+            return 24
+
     def _make_display_text(
         self, parent: tk.Misc, *, font: tuple, fg: str
-    ) -> tk.Text:
-        """선택/복사는 되지만 직접 수정은 되지 않는 읽기 전용 Text."""
+    ) -> ctk.CTkTextbox:
+        """??/??? ??? ?? ??? ?? ?? ?? ?? ??."""
 
-        widget = tk.Text(
+        c = self.theme
+        widget = ctk.CTkTextbox(
             parent,
             wrap="word",
-            bd=0,
-            relief="flat",
-            highlightthickness=0,
+            height=self.ENGLISH_MIN_LINES * 30,
+            corner_radius=0,
+            border_width=0,
+            border_spacing=0,
+            fg_color=c["panel_bg"],
+            text_color=fg,
+            font=font,
+            activate_scrollbars=False,
+        )
+        inner = widget._textbox
+        inner.configure(
             padx=0,
             pady=0,
-            font=font,
-            bg=self.theme["panel_bg"],
-            fg=fg,
-            selectbackground=self.theme["select_bg"],
-            selectforeground=self.theme["select_fg"],
             cursor="xterm",
-            height=1,
+            selectbackground=c["select_bg"],
+            selectforeground=c["select_fg"],
         )
         widget.configure(state="disabled")
         self._bind_copy_menu(widget)
         return widget
 
-    def _bind_copy_menu(self, widget: tk.Text) -> None:
+    def _bind_copy_menu(self, widget: ctk.CTkTextbox) -> None:
+        inner = self._text_inner(widget)
         menu = tk.Menu(
-            widget,
+            inner,
             tearoff=0,
             bg=self.theme["panel_bg"],
             fg=self.theme["text"],
@@ -1287,50 +1418,57 @@ class StudyApp(tk.Tk):
             bd=0,
         )
         menu.add_command(
-            label="복사", command=lambda: widget.event_generate("<<Copy>>")
+            label="??", command=lambda: inner.event_generate("<<Copy>>")
         )
         menu.add_command(
-            label="모두 선택",
-            command=lambda: widget.tag_add("sel", "1.0", "end-1c"),
+            label="?? ??",
+            command=lambda: inner.tag_add("sel", "1.0", "end-1c"),
         )
-        widget.bind(
+        inner.bind(
             "<Button-3>",
             lambda event: menu.tk_popup(event.x_root, event.y_root),
         )
 
     def _set_display_text(
         self,
-        widget: tk.Text,
+        widget: ctk.CTkTextbox,
         value: str,
         *,
         min_lines: int,
         max_lines: int,
         fg: str,
     ) -> None:
-        widget.configure(state="normal", fg=fg)
+        widget.configure(state="normal", text_color=fg)
         widget.delete("1.0", "end")
         if value:
-            widget.insert("1.0", value)
+            # Text는 끝에 암묵적인 개행을 갖기 때문에, 실제 개행이 있으면
+            # 마지막 빈 줄까지 한 줄로 세어 높이가 커집니다.
+            widget.insert("1.0", value.rstrip("\n"))
         widget.configure(state="disabled")
         self._fit_display_text(widget, min_lines=min_lines, max_lines=max_lines)
 
     def _fit_display_text(
-        self, widget: tk.Text, *, min_lines: int, max_lines: int
+        self, widget: ctk.CTkTextbox, *, min_lines: int, max_lines: int
     ) -> None:
         if self._fitting:
             return
+        line_height = self._display_line_height(widget)
         if not widget.winfo_ismapped():
-            widget.configure(height=min_lines)
+            widget.configure(height=min_lines * line_height + 4)
             return
         self._fitting = True
         try:
-            widget.update_idletasks()
+            inner = self._text_inner(widget)
+            inner.update_idletasks()
             try:
-                counts = widget.count("1.0", "end-1c", "displaylines")
+                # 'end-1c'는 마지막 줄(부분 줄)을 빼고 세므로, 줄바꿈으로
+                # 여러 줄이 된 본문의 높이가 1줄로 줄어드는 문제가 있습니다.
+                counts = inner.count("1.0", "end", "displaylines")
                 lines = int(counts[0]) if counts else min_lines
             except (tk.TclError, TypeError, IndexError):
                 lines = min_lines
-            widget.configure(height=max(min_lines, min(max_lines, lines)))
+            lines = max(min_lines, min(max_lines, lines))
+            widget.configure(height=lines * line_height + 4)
         finally:
             self._fitting = False
 
@@ -1339,7 +1477,8 @@ class StudyApp(tk.Tk):
         status = self.status_var.get() if hasattr(self, "status_var") else ""
         self.theme_name = "dark" if self.theme_name == "light" else "light"
         self.theme = THEMES[self.theme_name]
-        self.configure(bg=self.theme["window"])
+        ctk.set_appearance_mode(self.theme_name)
+        self.configure(fg_color=self.theme["window"])
         for child in self.winfo_children():
             child.destroy()
         self._build_ui()
@@ -1421,7 +1560,7 @@ class StudyApp(tk.Tk):
             self.info_var.set(
                 "문장을 선택하세요" if self.project else "먼저 프로젝트를 만드세요"
             )
-            self.edit_btn.state(["disabled"])
+            self.edit_btn.configure(state="disabled")
             self._set_display_text(
                 self.english_text,
                 "",
@@ -1449,7 +1588,7 @@ class StudyApp(tk.Tk):
             f"문장 {cue.index:03d} / {len(self.project.cues):03d}"
             f"   ·   {format_mmss(cue.start)}–{format_mmss(cue.end)}{question}"
         )
-        self.edit_btn.state(["!disabled"])
+        self.edit_btn.configure(state="normal")
 
         if cue.lang == "ko":
             self._set_display_text(
@@ -1656,7 +1795,7 @@ class StudyApp(tk.Tk):
         self._tail_busy = True
         self._tail_project_dir = self.project.directory
         if hasattr(self, "tail_btn"):
-            self.tail_btn.state(["disabled"])
+            self.tail_btn.configure(state="disabled")
         self.status_var.set("끝 잘림 분석 중…")
 
         result_queue: "queue.Queue[tuple[str, object]]" = queue.Queue()
@@ -1701,7 +1840,7 @@ class StudyApp(tk.Tk):
         self._tail_queue = None
         self._tail_busy = False
         if hasattr(self, "tail_btn"):
-            self.tail_btn.state(["!disabled"])
+            self.tail_btn.configure(state="normal")
 
         if kind == "error":
             self.status_var.set("끝 잘림 분석 실패")
@@ -1811,7 +1950,7 @@ class StudyApp(tk.Tk):
             messagebox.showerror("폴더 생성 실패", str(exc))
             return
 
-        self.new_btn.state(["disabled"])
+        self.new_btn.configure(state="disabled")
         progress = ProgressDialog(
             self,
             note=(
@@ -1862,6 +2001,13 @@ class StudyApp(tk.Tk):
             target = project_dir / audio_path.name
             shutil.copy2(audio_path, target)
 
+            try:
+                from .asr import device_note
+
+                dialog.push("note", (device_note(),))
+            except Exception:
+                pass
+
             config = RunConfig(
                 input_path=target,
                 out_dir=project_dir,
@@ -1901,6 +2047,8 @@ class StudyApp(tk.Tk):
             if kind == "progress":
                 message, fraction = data
                 dialog.set_progress(message, fraction)
+            elif kind == "note":
+                dialog.set_note(data[0])
             else:
                 finished, payload = kind, data
                 break
@@ -1911,7 +2059,7 @@ class StudyApp(tk.Tk):
             return
 
         dialog.close()
-        self.new_btn.state(["!disabled"])
+        self.new_btn.configure(state="normal")
         if finished == "done":
             try:
                 project = load_project(payload[0])
@@ -1977,7 +2125,7 @@ def main(argv: list[str] | None = None) -> int:
             projects = discover_projects()
             project = projects[0] if projects else None
     except Exception as exc:
-        root = tk.Tk()
+        root = ctk.CTk()
         root.withdraw()
         messagebox.showerror("프로젝트를 열 수 없습니다", str(exc))
         root.destroy()

@@ -1,13 +1,16 @@
 """PyTorch Whisper 기반 음성 인식.
 
-GPU가 없는 노트북을 기준으로 CPU에서 동작하도록 기본 설정되어 있습니다.
-`--device auto`를 주면 CUDA가 있을 때만 GPU를 사용합니다.
+`--device auto`를 주면 CUDA, Intel XPU(Arc GPU), Apple MPS 순으로
+사용 가능한 가속 장치를 고르고, 없으면 CPU로 동작합니다.
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import re
+import subprocess
+import sys
 from dataclasses import asdict, dataclass, field
 from types import SimpleNamespace
 from typing import Any, Callable
@@ -74,8 +77,196 @@ class ASRResult:
         )
 
 
+_XPU_STATUS: bool | None = None
+_INTEL_DRIVER: tuple[int, ...] | None = None
+_INTEL_DRIVER_CHECKED = False
+
+# PyTorch XPU(2.7+)가 요구하는 Intel 그래픽 드라이버 하한.
+# 이보다 오래된 드라이버에서 torch.xpu를 호출하면 프로세스가 죽을 수 있습니다.
+_MIN_XPU_DRIVER = (32, 0, 101, 0)
+
+
+def _intel_driver_version() -> tuple[int, ...] | None:
+    """Windows 레지스트리에서 Intel GPU 드라이버 버전을 읽습니다."""
+
+    global _INTEL_DRIVER, _INTEL_DRIVER_CHECKED
+    if _INTEL_DRIVER_CHECKED:
+        return _INTEL_DRIVER
+    _INTEL_DRIVER_CHECKED = True
+    if os.name != "nt":
+        return None
+    try:
+        import winreg
+
+        base = (
+            r"SYSTEM\CurrentControlSet\Control\Class"
+            r"\{4d36e968-e325-11ce-bfc1-08002be10318}"
+        )
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, base) as root:
+            for i in range(32):
+                try:
+                    with winreg.OpenKey(root, f"{i:04d}") as key:
+                        desc = str(winreg.QueryValueEx(key, "DriverDesc")[0])
+                        if "intel" not in desc.lower():
+                            continue
+                        raw = str(winreg.QueryValueEx(key, "DriverVersion")[0])
+                except OSError:
+                    continue
+                parts = tuple(int(x) for x in re.findall(r"\d+", raw)[:4])
+                if parts:
+                    _INTEL_DRIVER = parts
+                    return parts
+    except OSError:
+        return None
+    return None
+
+
+def _intel_driver_too_old() -> bool:
+    version = _intel_driver_version()
+    return version is not None and version < _MIN_XPU_DRIVER
+
+
+def _probe_xpu() -> bool:
+    """별도 프로세스에서 Intel XPU 사용 가능 여부를 확인합니다.
+
+    PyTorch XPU 런타임과 그래픽 드라이버가 맞지 않으면
+    `torch.xpu.is_available()` 호출 자체가 액세스 위반으로 프로세스를
+    종료시킬 수 있습니다. 부모 앱이 죽지 않도록 자식 프로세스에서 확인하고,
+    실패하면 CPU로 폴백합니다.
+    """
+
+    code = (
+        "import sys\n"
+        "if sys.platform == 'win32':\n"
+        "    import ctypes\n"
+        "    # 드라이버가 맞지 않아 자식이 죽을 때 Windows 오류 보고 창과\n"
+        "    # 긴 대기를 막습니다.\n"
+        "    ctypes.windll.kernel32.SetErrorMode(0x0001 | 0x0002 | 0x8000)\n"
+        "import torch\n"
+        "if not hasattr(torch, 'xpu'):\n"
+        "    sys.exit(3)\n"
+        "ok = bool(torch.xpu.is_available()) and int(torch.xpu.device_count()) > 0\n"
+        "sys.exit(0 if ok else 3)\n"
+    )
+    kwargs: dict[str, Any] = {}
+    if os.name == "nt":
+        kwargs["creationflags"] = 0x08000000  # CREATE_NO_WINDOW
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            timeout=20,
+            **kwargs,
+        )
+        return proc.returncode == 0
+    except Exception:
+        log.debug("XPU 확인 프로세스 실행 실패", exc_info=True)
+        return False
+
+
+def xpu_available() -> bool:
+    """Intel XPU(Arc/Iris Xe 등)를 PyTorch에서 쓸 수 있는지 확인합니다."""
+
+    global _XPU_STATUS
+    if _XPU_STATUS is not None:
+        return _XPU_STATUS
+
+    if _intel_driver_too_old():
+        version = ".".join(str(x) for x in (_intel_driver_version() or ()))
+        log.warning(
+            "Intel 그래픽 드라이버 %s가 오래되어 Intel Arc GPU(XPU)를 "
+            "사용하지 않습니다. 최신 Intel Arc 드라이버(32.0.101.6647 이상)로 "
+            "업데이트하면 자동으로 GPU를 사용합니다.",
+            version,
+        )
+        _XPU_STATUS = False
+        return False
+
+    import torch
+
+    if getattr(torch, "xpu", None) is None or getattr(
+        torch.version, "xpu", None
+    ) is None:
+        _XPU_STATUS = False
+        return False
+
+    _XPU_STATUS = _probe_xpu()
+    if not _XPU_STATUS:
+        log.info(
+            "Intel XPU를 사용할 수 없어 CPU로 진행합니다. "
+            "Intel 그래픽 드라이버를 최신 버전으로 업데이트하세요."
+        )
+    return _XPU_STATUS
+
+
+def is_gpu_device(device: str) -> bool:
+    """CUDA 또는 Intel XPU처럼 fp16 가속이 가능한 장치인지 확인합니다."""
+
+    value = (device or "").lower()
+    return value in ("cuda", "xpu") or value.startswith("xpu:")
+
+
+def _xpu_index(device: str) -> int:
+    """'xpu' / 'xpu:1'에서 장치 번호를 꺼냅니다."""
+
+    if ":" not in device:
+        return 0
+    try:
+        return max(0, int(device.split(":", 1)[1]))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _preferred_xpu_index() -> int:
+    """여러 Intel GPU가 보이면 내장 그래픽보다 Arc(외장)를 먼저 고릅니다."""
+
+    import torch
+
+    xpu = getattr(torch, "xpu", None)
+    try:
+        count = int(xpu.device_count())
+    except Exception:
+        return 0
+    for i in range(count):
+        try:
+            name = str(xpu.get_device_name(i)).lower()
+        except Exception:
+            continue
+        if "arc" in name:
+            return i
+    return 0
+
+
+def device_label(device: str) -> str:
+    """로그/GUI에 표시할 장치 이름을 돌려줍니다. 예: 'xpu (Intel(R) Arc(TM) A350M)'."""
+
+    import torch
+
+    try:
+        if device == "cuda":
+            return f"cuda ({torch.cuda.get_device_name(0)})"
+        if device.startswith("xpu"):
+            return f"{device} ({torch.xpu.get_device_name(_xpu_index(device))})"
+    except Exception:
+        pass
+    return device
+
+
+def device_note() -> str:
+    """GUI 진행률 창에 표시할 한 줄짜리 장치 설명."""
+
+    device = resolve_device("auto")
+    if device == "cpu" and _intel_driver_too_old():
+        version = ".".join(str(x) for x in (_intel_driver_version() or ()))
+        return (
+            f"추론 장치: cpu — Intel 그래픽 드라이버({version})가 오래되어 "
+            "Arc GPU를 쓸 수 없습니다"
+        )
+    return f"추론 장치: {device_label(device)}"
+
+
 def resolve_device(requested: str = "auto") -> str:
-    """'auto' | 'cpu' | 'cuda' | 'mps' → 실제 사용할 device."""
+    """'auto' | 'cpu' | 'cuda' | 'xpu' | 'xpu:N' | 'mps' → 실제 사용할 device."""
 
     import torch
 
@@ -83,12 +274,33 @@ def resolve_device(requested: str = "auto") -> str:
     if requested == "auto":
         if torch.cuda.is_available():
             return "cuda"
+        if xpu_available():
+            count = int(torch.xpu.device_count())
+            if count > 1:
+                return f"xpu:{_preferred_xpu_index()}"
+            return "xpu"
         if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
             return "mps"
         return "cpu"
     if requested == "cuda" and not torch.cuda.is_available():
         log.warning("CUDA를 사용할 수 없어 CPU로 진행합니다.")
         return "cpu"
+    if requested.startswith("xpu"):
+        if not xpu_available():
+            log.warning(
+                "Intel XPU를 사용할 수 없어 CPU로 진행합니다. "
+                "XPU용 PyTorch와 최신 Intel 그래픽 드라이버가 필요합니다.\n"
+                "  pip install torch torchvision torchaudio "
+                "--index-url https://download.pytorch.org/whl/xpu"
+            )
+            return "cpu"
+        index = _xpu_index(requested)
+        if index >= int(torch.xpu.device_count()):
+            log.warning(
+                "Intel XPU %d번 장치가 없어 기본 장치(xpu)를 사용합니다.", index
+            )
+            return "xpu"
+        return requested
     if requested == "mps":
         mps = getattr(torch.backends, "mps", None)
         if not (mps and mps.is_available()):
@@ -451,9 +663,10 @@ def transcribe(
 
     configure_threads(threads)
     dev = resolve_device(device)
-    fp16 = dev == "cuda"
+    # Intel Arc(XPU)와 CUDA는 fp16 가속을 지원합니다. MPS/CPU는 fp32를 씁니다.
+    fp16 = is_gpu_device(dev)
 
-    log.info("Whisper 모델 로드: %s (device=%s)", model_name, dev)
+    log.info("Whisper 모델 로드: %s (device=%s)", model_name, device_label(dev))
     try:
         model = whisper.load_model(model_name, device=dev)
     except Exception as exc:

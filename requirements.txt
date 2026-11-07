@@ -1,17 +1,20 @@
-# CPU-only 노트북 기준 의존성
+# 공통 의존성
 #
-# Linux에서 CUDA 없는 CPU 전용 torch를 쓰려면 먼저 아래처럼 설치하세요.
-#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+# GPU 가속을 쓰려면 torch를 용도에 맞는 wheel로 먼저 설치하세요.
+#   Intel Arc (XPU): pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/xpu
+#   NVIDIA (CUDA):   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+#   CPU only:        pip install torch --index-url https://download.pytorch.org/whl/cpu
 #
-# Windows/macOS는 기본 pip wheel이 CPU 버전입니다.
+# Windows/macOS의 기본 pip wheel은 CPU 버전입니다. GPU가 없으면 자동으로 CPU로 동작합니다.
 torch>=2.0
 openai-whisper>=20240930
 imageio-ffmpeg>=0.5.1
 numpy>=1.24
 requests>=2.31
 
-# GUI 재생
+# GUI 재생 / UI
 pygame>=2.5
+customtkinter>=5.2
 
 # NLLB 오프라인 번역 (GUI 기본 번역기, 최초 1회만 모델 다운로드)
 transformers>=4.40
