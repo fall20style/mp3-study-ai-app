@@ -1,19 +1,21 @@
 # mp3_study_app — 한영 자막 생성기
 
-영어 음성(mp3/wav/m4a)을 **PyTorch Whisper**로 받아쓰고, 문장 단위로 끊어
+영어 음성(mp3/wav/m4a)을 **Whisper**로 받아쓰고, 문장 단위로 끊어
 **`[분:초] 영어 문장 / 한국어 번역`** 형태의 공부용 자막과, 문장별로 다시
 들어볼 수 있는 **데스크톱 학습 GUI**를 만드는 앱입니다.
 
-NVIDIA GPU(CUDA)와 **Intel Arc GPU(XPU)** 를 자동 감지해 사용하고, GPU가
-없거나 드라이버가 준비되지 않았으면 CPU로 자동 전환합니다. `ffmpeg`는
-`imageio-ffmpeg`에 포함된 바이너리를 쓰므로 따로 설치할 필요가 없습니다.
+NVIDIA GPU(CUDA)와 **Intel Arc GPU**를 자동 감지해 사용하고, GPU가 없거나
+드라이버가 준비되지 않았으면 CPU로 자동 전환합니다. Intel Arc는 최신 그래픽
+드라이버가 없어도 **whisper.cpp Vulkan** 백엔드로 가속하며, CUDA/MPS/PyTorch
+XPU도 함께 지원합니다. `ffmpeg`는 `imageio-ffmpeg`에 포함된 바이너리를 쓰므로
+따로 설치할 필요가 없습니다.
 
 ![학습 GUI 화면](docs/screenshot.png)
 
 ## 기능
 
-- Whisper 추론: **Intel Arc GPU(XPU)** / NVIDIA GPU(CUDA) 자동 사용, 없으면 CPU
-  (기본 `small`, `base`/`medium` 선택 가능)
+- Whisper 추론: **Intel Arc GPU(Vulkan)** / Intel XPU / NVIDIA GPU(CUDA) / Apple MPS
+  자동 사용, 없으면 CPU (기본 `small`, `base`/`medium` 선택 가능)
 - 단어 타임스탬프 기반 **문장 단위 cue** 생성 (너무 긴 문장은 쉼표/단어 경계에서 분할)
 - 영어 → 한국어 번역
   - `google`: CLI 기본값. 모델 다운로드/CPU 부담 없이 빠름 (온라인)

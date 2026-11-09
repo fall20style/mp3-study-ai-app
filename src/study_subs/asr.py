@@ -1,7 +1,8 @@
-"""PyTorch Whisper 기반 음성 인식.
+"""Whisper 음성 인식.
 
-`--device auto`를 주면 CUDA, Intel XPU(Arc GPU), Apple MPS 순으로
-사용 가능한 가속 장치를 고르고, 없으면 CPU로 동작합니다.
+`--device auto`를 주면 CUDA → Intel Arc(Vulkan whisper.cpp) → Intel XPU →
+Apple MPS 순으로 사용 가능한 가속 장치를 고르고, 없으면 PyTorch CPU로
+동작합니다. Intel Arc는 최신 드라이버 없이도 Vulkan으로 가속합니다.
 """
 
 from __future__ import annotations
@@ -80,21 +81,22 @@ class ASRResult:
 _XPU_STATUS: bool | None = None
 _INTEL_DRIVER: tuple[int, ...] | None = None
 _INTEL_DRIVER_CHECKED = False
+_INTEL_GPUS: list[tuple[str, tuple[int, ...]]] | None = None
 
 # PyTorch XPU(2.7+)가 요구하는 Intel 그래픽 드라이버 하한.
 # 이보다 오래된 드라이버에서 torch.xpu를 호출하면 프로세스가 죽을 수 있습니다.
 _MIN_XPU_DRIVER = (32, 0, 101, 0)
 
 
-def _intel_driver_version() -> tuple[int, ...] | None:
-    """Windows 레지스트리에서 Intel GPU 드라이버 버전을 읽습니다."""
+def _intel_gpus() -> list[tuple[str, tuple[int, ...]]]:
+    """Windows 레지스트리에서 Intel GPU 이름과 드라이버 버전을 읽습니다."""
 
-    global _INTEL_DRIVER, _INTEL_DRIVER_CHECKED
-    if _INTEL_DRIVER_CHECKED:
-        return _INTEL_DRIVER
-    _INTEL_DRIVER_CHECKED = True
+    global _INTEL_GPUS
+    if _INTEL_GPUS is not None:
+        return _INTEL_GPUS
+    _INTEL_GPUS = []
     if os.name != "nt":
-        return None
+        return _INTEL_GPUS
     try:
         import winreg
 
@@ -114,10 +116,31 @@ def _intel_driver_version() -> tuple[int, ...] | None:
                     continue
                 parts = tuple(int(x) for x in re.findall(r"\d+", raw)[:4])
                 if parts:
-                    _INTEL_DRIVER = parts
-                    return parts
+                    _INTEL_GPUS.append((desc, parts))
     except OSError:
-        return None
+        pass
+    return _INTEL_GPUS
+
+
+def _intel_driver_version() -> tuple[int, ...] | None:
+    global _INTEL_DRIVER, _INTEL_DRIVER_CHECKED
+    if _INTEL_DRIVER_CHECKED:
+        return _INTEL_DRIVER
+    _INTEL_DRIVER_CHECKED = True
+    gpus = _intel_gpus()
+    if gpus:
+        # Arc(외장) 드라이버를 우선 확인합니다.
+        _INTEL_DRIVER = next(
+            (version for name, version in gpus if "arc" in name.lower()),
+            gpus[0][1],
+        )
+    return _INTEL_DRIVER
+
+
+def _intel_arc_name() -> str | None:
+    for name, _version in _intel_gpus():
+        if "arc" in name.lower():
+            return name
     return None
 
 
@@ -206,6 +229,43 @@ def is_gpu_device(device: str) -> bool:
     return value in ("cuda", "xpu") or value.startswith("xpu:")
 
 
+def is_vulkan_device(device: str) -> bool:
+    """whisper.cpp Vulkan 백엔드를 쓰는 장치인지 확인합니다."""
+
+    return (device or "").lower().startswith("vulkan")
+
+
+def resolve_asr_backend(requested: str = "auto") -> str:
+    """ASR에 실제 사용할 백엔드를 고릅니다.
+
+    `auto`는 CUDA → Intel Arc(Vulkan) → PyTorch XPU → MPS → CPU 순서입니다.
+    Intel Arc가 있으면 최신 드라이버 없이도 Vulkan으로 가속합니다.
+    """
+
+    requested = (requested or "auto").lower()
+
+    env_backend = os.environ.get("STUDY_SUBS_ASR_BACKEND", "").strip().lower()
+    if requested == "auto" and env_backend in ("cpu", "vulkan"):
+        return env_backend
+    if is_vulkan_device(requested):
+        return requested
+    if requested != "auto":
+        return requested
+
+    import torch
+
+    if torch.cuda.is_available():
+        return "cuda"
+
+    if os.name == "nt" and _intel_arc_name():
+        from . import whisper_vulkan
+
+        if whisper_vulkan.is_supported():
+            return "vulkan"
+
+    return resolve_device("auto")
+
+
 def _xpu_index(device: str) -> int:
     """'xpu' / 'xpu:1'에서 장치 번호를 꺼냅니다."""
 
@@ -238,7 +298,11 @@ def _preferred_xpu_index() -> int:
 
 
 def device_label(device: str) -> str:
-    """로그/GUI에 표시할 장치 이름을 돌려줍니다. 예: 'xpu (Intel(R) Arc(TM) A350M)'."""
+    """로그/GUI에 표시할 장치 이름을 돌려줍니다. 예: 'vulkan (Intel(R) Arc...)'."""
+
+    if is_vulkan_device(device):
+        name = _intel_arc_name() or "Vulkan GPU"
+        return f"vulkan ({name})"
 
     import torch
 
@@ -246,6 +310,10 @@ def device_label(device: str) -> str:
         if device == "cuda":
             return f"cuda ({torch.cuda.get_device_name(0)})"
         if device.startswith("xpu"):
+            # 드라이버가 맞지 않으면 torch.xpu 호출 자체가 프로세스를 죽이므로
+            # 사용 가능 판정을 먼저 통과한 경우에만 장치 이름을 읽습니다.
+            if not xpu_available():
+                return "cpu"
             return f"{device} ({torch.xpu.get_device_name(_xpu_index(device))})"
     except Exception:
         pass
@@ -255,12 +323,13 @@ def device_label(device: str) -> str:
 def device_note() -> str:
     """GUI 진행률 창에 표시할 한 줄짜리 장치 설명."""
 
-    device = resolve_device("auto")
-    if device == "cpu" and _intel_driver_too_old():
-        version = ".".join(str(x) for x in (_intel_driver_version() or ()))
+    device = resolve_asr_backend("auto")
+    if is_vulkan_device(device):
+        return f"추론 장치: {device_label(device)} · 번역: CPU"
+    if device == "cpu" and _intel_arc_name():
         return (
-            f"추론 장치: cpu — Intel 그래픽 드라이버({version})가 오래되어 "
-            "Arc GPU를 쓸 수 없습니다"
+            "추론 장치: cpu — Intel Arc를 찾았지만 Vulkan 런타임을 "
+            "사용할 수 없습니다"
         )
     return f"추론 장치: {device_label(device)}"
 
@@ -451,8 +520,19 @@ def _speech_regions(
     return regions
 
 
+def _as_runner(source: Any) -> Callable[..., dict[str, Any]]:
+    """호출 가능한 함수나 `.transcribe()`를 가진 모델을 실행 함수로 정규화합니다."""
+
+    if callable(source):
+        return source
+    transcribe = getattr(source, "transcribe", None)
+    if callable(transcribe):
+        return transcribe
+    raise TypeError("run은 호출 가능한 함수이거나 .transcribe()를 가진 객체여야 합니다.")
+
+
 def _fill_skipped_gaps(
-    model: Any,
+    run: Callable[..., dict[str, Any]],
     audio: np.ndarray,
     segments: list[ASRSegment],
     *,
@@ -460,6 +540,8 @@ def _fill_skipped_gaps(
     beam_size: int,
 ) -> list[ASRSegment]:
     """Whisper가 건너뛴 긴 무음 구간에서 말소리만 골라 다시 인식합니다."""
+
+    run = _as_runner(run)
 
     if len(segments) < 2:
         return []
@@ -477,7 +559,7 @@ def _fill_skipped_gaps(
             chunk = audio[int(rs * _SAMPLE_RATE) : int(re * _SAMPLE_RATE)]
             if chunk.size == 0:
                 continue
-            result = model.transcribe(
+            result = run(
                 chunk,
                 language=language,
                 task="transcribe",
@@ -519,18 +601,24 @@ def _hangul_ratio(text: str) -> float:
 
 
 def _rescue_sparse_segments(
-    model: Any,
+    run: Callable[..., dict[str, Any]],
     audio: np.ndarray,
     segments: list[ASRSegment],
     *,
     beam_size: int,
+    trust_missing_no_speech: bool = False,
 ) -> list[ASRSegment]:
     """짧은 영어가 긴 구간을 차지한 환각을 한국어 안내로 다시 인식합니다.
 
     Whisper가 한국어 안내를 영어 문장 하나로 덮어쓰는 경우(예: 28초 구간에
     "The answer is the answer.")가 있어, 단어 밀도가 비정상적으로 낮고
     무음 확률이 높은 구간만 한국어로 다시 읽습니다.
+
+    `trust_missing_no_speech`가 True면 `no_speech_prob`가 없는 결과(Vulkan
+    whisper.cpp)도 후보로 인정합니다.
     """
+
+    run = _as_runner(run)
 
     rescued: list[ASRSegment] = []
     for seg in segments:
@@ -540,7 +628,10 @@ def _rescue_sparse_segments(
             continue
         if _hangul_ratio(seg.text) > 0.1:
             continue
-        if seg.no_speech_prob is not None and seg.no_speech_prob < 0.5:
+        if seg.no_speech_prob is None:
+            if not trust_missing_no_speech:
+                continue
+        elif seg.no_speech_prob < 0.5:
             continue
 
         total = len(audio) / _SAMPLE_RATE
@@ -558,7 +649,7 @@ def _rescue_sparse_segments(
             chunk = audio[int(lo * _SAMPLE_RATE) : int(hi * _SAMPLE_RATE)]
             if chunk.size == 0:
                 continue
-            result = model.transcribe(
+            result = run(
                 chunk,
                 language="ko",
                 task="transcribe",
@@ -612,8 +703,11 @@ def _rescue_sparse_segments(
             seg.end - seg.start >= 12.0
             and len(seg.text.split()) / max(seg.end - seg.start, 1e-6) < 0.5
             and _hangul_ratio(seg.text) <= 0.1
-            and seg.no_speech_prob is not None
-            and seg.no_speech_prob >= 0.5
+            and (
+                seg.no_speech_prob is None
+                if trust_missing_no_speech
+                else seg.no_speech_prob is not None and seg.no_speech_prob >= 0.5
+            )
             and any(
                 item.start < seg.end and item.end > seg.start for item in rescued
             )
@@ -639,6 +733,80 @@ def _progress_tqdm(callback: Callable[[float], None]) -> Any:
     return SimpleNamespace(tqdm=ProgressTqdm)
 
 
+def _transcribe_vulkan(
+    audio: np.ndarray,
+    *,
+    model_name: str,
+    language: str | None,
+    device: str,
+    threads: int,
+    beam_size: int,
+    initial_prompt: str | None,
+    progress: Callable[[float], None] | None,
+) -> ASRResult:
+    """Intel Arc에서 whisper.cpp Vulkan으로 전사합니다."""
+
+    from . import whisper_vulkan
+
+    lang = None if not language or language.lower() == "auto" else language.lower()
+
+    def run(chunk: np.ndarray, **kwargs: Any) -> dict[str, Any]:
+        requested = kwargs.get("language") or lang or "auto"
+        return whisper_vulkan.transcribe_audio(
+            np.asarray(chunk, dtype=np.float32),
+            model_name=model_name,
+            language=requested,
+            device=device,
+            threads=threads,
+            beam_size=int(kwargs.get("beam_size", beam_size)),
+            initial_prompt=initial_prompt,
+        )
+
+    log.info("음성 인식 시작 (Vulkan, %.1f초 오디오)", audio.size / _SAMPLE_RATE)
+    try:
+        result = whisper_vulkan.transcribe_audio(
+            audio,
+            model_name=model_name,
+            language=lang or "auto",
+            device=device,
+            threads=threads,
+            beam_size=beam_size,
+            initial_prompt=initial_prompt,
+            progress=progress,
+        )
+    except Exception as exc:
+        raise ASRError(f"Vulkan 음성 인식에 실패했습니다: {exc}") from exc
+
+    segments = _segments_from_result(result)
+    if not segments:
+        raise ASRError("음성에서 문장을 인식하지 못했습니다. 오디오와 모델 설정을 확인하세요.")
+
+    added = _fill_skipped_gaps(
+        run, audio, segments, language=lang, beam_size=beam_size
+    )
+    if added:
+        segments = sorted(segments + added, key=lambda s: s.start)
+        log.info("      건너뛴 구간에서 %d개 구간 추가 인식", len(added))
+
+    segments = _rescue_sparse_segments(
+        run,
+        audio,
+        segments,
+        beam_size=beam_size,
+        trust_missing_no_speech=True,
+    )
+    if progress is not None:
+        progress(1.0)
+
+    return ASRResult(
+        language=str(result.get("language", lang or "unknown")),
+        duration=audio.size / _SAMPLE_RATE,
+        model=model_name,
+        device=device,
+        segments=segments,
+    )
+
+
 def transcribe(
     audio: np.ndarray,
     *,
@@ -653,6 +821,29 @@ def transcribe(
 ) -> ASRResult:
     """Whisper로 전사하고 단어 단위 타임스탬프를 반환합니다."""
 
+    backend = resolve_asr_backend(device)
+
+    if is_vulkan_device(backend):
+        try:
+            return _transcribe_vulkan(
+                audio,
+                model_name=model_name,
+                language=language,
+                device=backend,
+                threads=threads,
+                beam_size=beam_size,
+                initial_prompt=initial_prompt,
+                progress=progress,
+            )
+        except ASRError:
+            raise
+        except Exception as exc:
+            log.warning(
+                "Vulkan(Intel Arc) 음성 인식에 실패해 PyTorch CPU로 대체합니다: %s",
+                exc,
+            )
+            backend = "cpu"
+
     try:
         import whisper
     except ImportError as exc:
@@ -662,7 +853,7 @@ def transcribe(
         ) from exc
 
     configure_threads(threads)
-    dev = resolve_device(device)
+    dev = resolve_device(backend)
     # Intel Arc(XPU)와 CUDA는 fp16 가속을 지원합니다. MPS/CPU는 fp32를 씁니다.
     fp16 = is_gpu_device(dev)
 
@@ -712,7 +903,7 @@ def transcribe(
 
     # Whisper가 긴 무음 뒤의 한국어 안내를 통째로 건너뛰는 경우 보완
     added = _fill_skipped_gaps(
-        model, audio, segments, language=lang, beam_size=beam_size
+        model.transcribe, audio, segments, language=lang, beam_size=beam_size
     )
     if added:
         segments = sorted(segments + added, key=lambda s: s.start)
@@ -720,7 +911,7 @@ def transcribe(
 
     # 긴 구간을 차지한 영어 환각을 한국어 안내로 되돌립니다.
     segments = _rescue_sparse_segments(
-        model, audio, segments, beam_size=beam_size
+        model.transcribe, audio, segments, beam_size=beam_size
     )
     if progress is not None:
         progress(1.0)

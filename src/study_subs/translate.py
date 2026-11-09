@@ -263,12 +263,15 @@ class NLLBTranslator:
             configure_threads,
             device_label,
             is_gpu_device,
+            is_vulkan_device,
             resolve_device,
         )
 
         configure_threads(threads)
         self.torch = torch
-        self.device = resolve_device(device)
+        # Vulkan은 whisper.cpp 전용 백엔드이므로 NLLB 번역은 CPU에서 실행합니다.
+        translate_device = "cpu" if is_vulkan_device(device) else device
+        self.device = resolve_device(translate_device)
         self.batch_size = max(1, int(batch_size))
         self.num_beams = max(1, int(num_beams))
         self.source_lang = source_lang
