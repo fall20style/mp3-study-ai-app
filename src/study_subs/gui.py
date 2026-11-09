@@ -1004,6 +1004,7 @@ class StudyApp(ctk.CTk):
         self._tail_queue: "queue.Queue[tuple[str, object]] | None" = None
         self._tail_project_dir: Path | None = None
         self._state_after: str | None = None
+        self._theme_after: str | None = None
         self._fitting = False
 
         self.title(f"{project.name} — 영어 듣기 학습" if project else "영어 듣기 학습")
@@ -1479,6 +1480,22 @@ class StudyApp(ctk.CTk):
         self.theme = THEMES[self.theme_name]
         ctk.set_appearance_mode(self.theme_name)
         self.configure(fg_color=self.theme["window"])
+        # CustomTkinter는 테마를 바꿀 때 제목 표시줄 색을 갱신하면서
+        # `after(1, 포커스_복원)`을 예약합니다. 그 직후에 위젯을 모두
+        # 파괴하면 이미 사라진 위젯에 포커스를 주려다 TclError가 납니다.
+        # 예약된 콜백이 먼저 실행되도록 재구성을 잠시 미룹니다.
+        if self._theme_after is not None:
+            try:
+                self.after_cancel(self._theme_after)
+            except Exception:
+                pass
+        self._theme_after = self.after(
+            30, lambda: self._rebuild_theme(index, status)
+        )
+        return "break"
+
+    def _rebuild_theme(self, index: int | None, status: str) -> None:
+        self._theme_after = None
         for child in self.winfo_children():
             child.destroy()
         self._build_ui()
@@ -1486,7 +1503,6 @@ class StudyApp(ctk.CTk):
         if status:
             self.status_var.set(status)
         self.cue_list.focus_set()
-        return "break"
 
     def _bind_keys(self) -> None:
         self.bind("<space>", self._on_space)
