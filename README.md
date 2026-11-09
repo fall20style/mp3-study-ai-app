@@ -88,9 +88,14 @@ python -c "import torch; print(torch.__version__); print(torch.xpu.is_available(
 
 ## GUI로 공부하기
 
+Windows에서는 `.venv`의 Python으로 실행해 주는 `run_gui.cmd`를 사용하세요.
+
 ```powershell
-python gui.py
+.\run_gui.cmd
 ```
+
+가상환경을 직접 활성화했다면 `python gui.py`로도 실행할 수 있습니다.
+자세한 내용은 [`docs/running.md`](docs/running.md)를 참고하세요.
 
 - 왼쪽: **문장 번호 + 시작/종료 시간** 목록 (`005  00:15 - 00:17`)
   - 영어 본문은 목록에 표시하지 않아 듣기 학습을 방해하지 않습니다.
