@@ -1,17 +1,21 @@
 # mp3_study_app — 한영 자막 생성기
 
-영어 음성(mp3/wav/m4a)을 **PyTorch Whisper**로 받아쓰고, 문장 단위로 끊어
+영어 음성(mp3/wav/m4a)을 **Whisper**로 받아쓰고, 문장 단위로 끊어
 **`[분:초] 영어 문장 / 한국어 번역`** 형태의 공부용 자막과, 문장별로 다시
 들어볼 수 있는 **데스크톱 학습 GUI**를 만드는 앱입니다.
 
-GPU가 없는 노트북(CPU only)을 기준으로 만들었습니다. `ffmpeg`는
-`imageio-ffmpeg`에 포함된 바이너리를 쓰므로 따로 설치할 필요가 없습니다.
+NVIDIA GPU(CUDA)와 **Intel Arc GPU**를 자동 감지해 사용하고, GPU가 없거나
+드라이버가 준비되지 않았으면 CPU로 자동 전환합니다. Intel Arc는 최신 그래픽
+드라이버가 없어도 **whisper.cpp Vulkan** 백엔드로 가속하며, CUDA/MPS/PyTorch
+XPU도 함께 지원합니다. `ffmpeg`는 `imageio-ffmpeg`에 포함된 바이너리를 쓰므로
+따로 설치할 필요가 없습니다.
 
 ![학습 GUI 화면](docs/screenshot.png)
 
 ## 기능
 
-- Whisper **CPU 추론** (기본 `small`, `base`/`medium` 선택 가능)
+- Whisper 추론: **Intel Arc GPU(Vulkan)** / Intel XPU / NVIDIA GPU(CUDA) / Apple MPS
+  자동 사용, 없으면 CPU (기본 `small`, `base`/`medium` 선택 가능)
 - 단어 타임스탬프 기반 **문장 단위 cue** 생성 (너무 긴 문장은 쉼표/단어 경계에서 분할)
 - 영어 → 한국어 번역
   - `google`: CLI 기본값. 모델 다운로드/CPU 부담 없이 빠름 (온라인)
@@ -37,14 +41,33 @@ cd C:\Users\fall2\work\mp3_study_app
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-# CPU 전용 PyTorch (Windows는 기본 wheel이 CPU입니다)
 python -m pip install --upgrade pip
-python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# 아래 셋 중 하나를 고릅니다.
+
+# 1) Intel Arc GPU (XPU) — 권장
+python -m pip install torch torchvision torchaudio `
+  --index-url https://download.pytorch.org/whl/xpu
+
+# 2) NVIDIA CUDA GPU
+# python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+
+# 3) CPU only
+# python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+
 python -m pip install -r requirements.txt
 ```
 
-Linux에서 CUDA 없는 CPU만 쓴다면 위 `torch` 설치 명령을 그대로 쓰면 됩니다.
-이미 CUDA용 torch가 설치되어 있어도 `--device cpu`로 실행할 수 있습니다.
+Intel Arc GPU를 쓰려면 **최신 Intel 그래픽 드라이버**가 필요합니다. 설치 후
+아래 명령으로 GPU가 잡히는지 확인하세요.
+
+```powershell
+python -c "import torch; print(torch.__version__); print(torch.xpu.is_available()); print(torch.xpu.get_device_name(0) if torch.xpu.is_available() else 'no XPU')"
+```
+
+`torch.xpu.is_available()`이 `False`라면 드라이버를 업데이트하거나,
+`torch` wheel을 XPU 버전으로 다시 설치하세요. GPU가 잡히지 않아도 앱은
+자동으로 CPU로 동작합니다. `--device cpu`로 강제할 수도 있습니다.
 
 첫 실행 때 Whisper 모델을 내려받습니다. GUI의 NLLB 번역도 최초 1회
 `facebook/nllb-200-distilled-600M`(약 2.4GB)을 내려받은 뒤 로컬 캐시를
@@ -58,15 +81,21 @@ Linux에서 CUDA 없는 CPU만 쓴다면 위 `torch` 설치 명령을 그대로 
 | `medium` | 1.5 GB | ~5 GB | 약 30~45분 |
 
 \* 16스레드 노트북 CPU, `--beam-size 1` 기준 대략적인 값입니다. 코어 수에 따라
-달라집니다. `small`은 `base`보다 고유명사/문장부호가 조금 더 정확합니다.
+달라집니다. Intel Arc GPU(XPU)나 CUDA GPU에서는 이보다 훨씬 빠릅니다.
+`small`은 `base`보다 고유명사/문장부호가 조금 더 정확합니다.
 `--beam-size`를 5로 올리면 품질은 조금 좋아지지만 2~4배 느려집니다.
 노트북이 느리다면 `--model base`를 먼저 사용해 보세요.
 
 ## GUI로 공부하기
 
+Windows에서는 `.venv`의 Python으로 실행해 주는 `run_gui.cmd`를 사용하세요.
+
 ```powershell
-python gui.py
+.\run_gui.cmd
 ```
+
+가상환경을 직접 활성화했다면 `python gui.py`로도 실행할 수 있습니다.
+자세한 내용은 [`docs/running.md`](docs/running.md)를 참고하세요.
 
 - 왼쪽: **문장 번호 + 시작/종료 시간** 목록 (`005  00:15 - 00:17`)
   - 영어 본문은 목록에 표시하지 않아 듣기 학습을 방해하지 않습니다.
@@ -188,7 +217,7 @@ python make_project.py `
 |---|---|
 | `--model` | `tiny`, `base`, `small`(기본), `medium`, `large-v3` |
 | `--language` | 기본 `en`. `auto`는 자동 감지(한국어 안내가 많은 파일에서는 비권장) |
-| `--device` | `auto`(기본), `cpu`, `cuda`, `mps` |
+| `--device` | `auto`(기본, CUDA→Intel XPU→MPS→CPU), `cpu`, `cuda`, `xpu`, `xpu:N`, `mps` |
 | `--threads` | PyTorch CPU 스레드 수 (0 = 논리 코어 전체) |
 | `--beam-size` | Whisper beam search 크기 (기본 1, 빠름) |
 | `--translator` | `google`(기본), `nllb`, `none` |
@@ -338,7 +367,8 @@ python main.py data/lecture.mp3 --translator nllb
 ```
 
 - `facebook/nllb-200-distilled-600M` 사용 (약 2.4GB, 최초 1회만 다운로드)
-- CPU에서 Google보다 느립니다. 노트북에서는 `--device cpu`(기본)로 동작합니다.
+- CPU에서는 Google보다 느리지만, Intel Arc/CUDA GPU에서는 fp16으로 빨라집니다.
+  GPU가 없으면 자동으로 CPU로 동작합니다.
 - 두 번째 실행부터는 `local_files_only`로 로컬 캐시만 읽어 네트워크 없이
   바로 시작합니다.
 - GUI는 항상 NLLB를 사용합니다.
@@ -368,6 +398,28 @@ ffmpeg를 우선 사용합니다.
 `~/.cache/whisper`(Windows: `C:\Users\<사용자>\.cache\whisper`)에 모델이
 내려받아집니다. 사내망/방화벽이면 프록시 설정이 필요합니다. `--model base`로
 작은 모델을 먼저 시도해 보세요.
+
+**Intel Arc GPU가 사용되지 않습니다 (CPU로 동작)**
+아래를 확인하세요.
+
+```powershell
+python -c "import torch; print(torch.__version__); print(torch.xpu.is_available())"
+```
+
+- `+cpu`가 붙어 있으면 XPU용 wheel이 아닙니다. 다시 설치하세요.
+  `pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/xpu`
+- `torch.xpu.is_available()`이 `False`면 Intel 그래픽 드라이버를 최신 버전으로
+  업데이트하세요. PyTorch XPU는 **32.0.101.6647 이상**을 요구합니다.
+  Intel 공식 다운로드:
+  <https://www.intel.com/content/www/us/en/download/785597/intel-arc-graphics-windows.html>
+  (Arc A-Series와 Iris Xe 통합 드라이버입니다. 설치 후 재부팅하세요.)
+- GPU가 잡히면 `--device auto`(기본) 또는 `--device xpu`로 실행할 수 있습니다.
+  `auto`는 XPU 장치가 여러 개면 이름에 `Arc`가 들어간 외장 GPU를 우선 선택합니다.
+- 노트북에 내장 그래픽(Iris Xe)과 Arc가 함께 있으면
+  `python -c "import torch; [print(i, torch.xpu.get_device_name(i)) for i in range(torch.xpu.device_count())]"`
+  로 번호를 확인하고 `--device xpu:1`처럼 지정할 수 있습니다.
+- GUI는 `auto`를 쓰므로 별도 설정 없이 Arc가 선택됩니다. 진행률 창의
+  `추론 장치:` 줄에서 실제 사용 장치를 확인할 수 있습니다.
 
 **메모리가 부족합니다**
 `--model base` 또는 `--model tiny`를 쓰세요. `medium`은 16GB 노트북에서도

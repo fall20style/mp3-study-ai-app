@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 import sys
 from pathlib import Path
 
@@ -34,12 +35,26 @@ def _parse_formats(value: str) -> tuple[str, ...]:
     return items
 
 
+def _parse_device(value: str) -> str:
+    value = value.strip().lower()
+    if value in ("auto", "cpu", "cuda", "mps"):
+        return value
+    if value == "xpu" or re.fullmatch(r"xpu:[0-9]+", value):
+        return value
+    if value == "vulkan" or re.fullmatch(r"vulkan:[0-9]+", value):
+        return value
+    raise argparse.ArgumentTypeError(
+        "장치는 auto, cpu, cuda, xpu, xpu:N, vulkan, vulkan:N, mps 중 하나여야 합니다."
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="study-subs",
         description=(
-            "영어 음성 파일을 Whisper(PyTorch)로 인식하고 한국어로 번역해 "
-            "'[분:초] 영어 / 한국어' 자막을 만듭니다. GPU 없는 노트북용 CPU 설정이 기본입니다."
+            "영어 음성 파일을 Whisper로 인식하고 한국어로 번역해 "
+            "'[분:초] 영어 / 한국어' 자막을 만듭니다. CUDA/Intel Arc(Vulkan)/"
+            "Intel XPU가 있으면 자동으로 GPU를 사용하고, 없으면 CPU로 동작합니다."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
@@ -71,8 +86,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--device",
         default="auto",
-        choices=("auto", "cpu", "cuda", "mps"),
-        help="추론 장치 (기본: auto → GPU 없으면 CPU)",
+        type=_parse_device,
+        metavar="{auto,cpu,cuda,xpu,xpu:N,vulkan,vulkan:N,mps}",
+        help=(
+            "추론 장치 (기본: auto → CUDA/Intel Arc(Vulkan)/Intel XPU/MPS 중 "
+            "사용 가능한 GPU, 없으면 CPU). Intel GPU가 여러 개면 "
+            "xpu:0, xpu:1 또는 vulkan:0, vulkan:1로 지정"
+        ),
     )
     p.add_argument(
         "--threads",

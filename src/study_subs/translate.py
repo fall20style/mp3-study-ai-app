@@ -259,19 +259,30 @@ class NLLBTranslator:
                 "  pip install transformers sentencepiece sacremoses"
             ) from exc
 
-        from .asr import configure_threads, resolve_device
+        from .asr import (
+            configure_threads,
+            device_label,
+            is_gpu_device,
+            is_vulkan_device,
+            resolve_device,
+        )
 
         configure_threads(threads)
         self.torch = torch
-        self.device = resolve_device(device)
+        # Vulkan은 whisper.cpp 전용 백엔드이므로 NLLB 번역은 CPU에서 실행합니다.
+        translate_device = "cpu" if is_vulkan_device(device) else device
+        self.device = resolve_device(translate_device)
         self.batch_size = max(1, int(batch_size))
         self.num_beams = max(1, int(num_beams))
         self.source_lang = source_lang
         self.target_lang = target_lang
         self.cache = JsonCache(cache_path)
-        self.dtype = torch.float16 if self.device == "cuda" else torch.float32
+        # CUDA/Intel XPU는 fp16으로 추론해 속도와 메모리를 절약합니다.
+        self.dtype = torch.float16 if is_gpu_device(self.device) else torch.float32
 
-        log.info("NLLB 모델 로드: %s (device=%s)", model_name, self.device)
+        log.info(
+            "NLLB 모델 로드: %s (device=%s)", model_name, device_label(self.device)
+        )
         tokenizer_kwargs = {"src_lang": self.source_lang}
         model_kwargs = {"torch_dtype": self.dtype}
         try:
