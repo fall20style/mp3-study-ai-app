@@ -1124,19 +1124,19 @@ class StudyApp(ctk.CTk):
         header = ctk.CTkFrame(self, fg_color=c["header_bg"], corner_radius=0)
         header.pack(side="top", fill="x")
 
-        # ?? ??? ?? ?????. ???? ??? ??? ?? ???
-        # ??? ??? ??? ??? ??? ?? ?? ?????.
+        # 버튼 영역을 먼저 확보합니다. 프로젝트 이름이 길거나 창이 좁아도
+        # 오른쪽 버튼이 제목에 밀려서 잘리지 않게 하기 위함입니다.
         actions = ctk.CTkFrame(header, fg_color="transparent")
         actions.pack(side="right", padx=(0, 16), pady=14)
         self.new_btn = self._make_header_button(
             actions,
-            "+ MP3? ? ????",
+            "+ MP3로 새 프로젝트",
             self._new_project,
             width=174,
         )
         self.new_btn.pack(side="right")
         self._make_header_button(
-            actions, "???? ??", self._choose_project, width=124
+            actions, "프로젝트 열기", self._choose_project, width=124
         ).pack(side="right", padx=(8, 0))
         self._make_header_button(
             actions, self._theme_button_text(), self._toggle_theme, width=76
@@ -1145,7 +1145,7 @@ class StudyApp(ctk.CTk):
         title_box = ctk.CTkFrame(header, fg_color="transparent")
         title_box.pack(side="left", fill="x", expand=True, padx=(24, 12), pady=14)
         self.header_name = tk.StringVar(
-            value=self.project.name if self.project else "? ????"
+            value=self.project.name if self.project else "새 프로젝트"
         )
         ctk.CTkLabel(
             title_box,
@@ -1158,7 +1158,7 @@ class StudyApp(ctk.CTk):
             value=(
                 self._project_subtitle(self.project)
                 if self.project
-                else "??? ? [+ MP3? ? ????]? ?? ?????"
+                else "오른쪽 위 [+ MP3로 새 프로젝트]를 눌러 시작하세요"
             )
         )
         ctk.CTkLabel(
@@ -1169,7 +1169,7 @@ class StudyApp(ctk.CTk):
             anchor="w",
         ).pack(fill="x", pady=(2, 0))
 
-        # ?? ?? body?? ?? pack?? ? ??? ??? ?? ????.
+        # 하단 바를 body보다 먼저 pack해야 창 높이가 줄어들 때도 보입니다.
         bar = ctk.CTkFrame(self, fg_color=c["bar_bg"], corner_radius=0)
         bar.pack(side="bottom", fill="x")
         ctk.CTkFrame(
@@ -1180,7 +1180,7 @@ class StudyApp(ctk.CTk):
 
         self.play_btn = ctk.CTkButton(
             bar_inner,
-            text="?  ?? (Space)",
+            text="▶  재생 (Space)",
             command=self._play_selected,
             width=154,
             height=36,
@@ -1192,23 +1192,23 @@ class StudyApp(ctk.CTk):
         )
         self.play_btn.pack(side="left")
         self._make_bar_button(
-            bar_inner, "?  ?? (Esc)", self._stop_playback, width=128
+            bar_inner, "■  정지 (Esc)", self._stop_playback, width=128
         ).pack(side="left", padx=(8, 0))
         self._make_bar_button(
-            bar_inner, "?? ??", lambda: self._step(-1), width=100
+            bar_inner, "이전 문장", lambda: self._step(-1), width=100
         ).pack(side="left", padx=(18, 0))
         self._make_bar_button(
-            bar_inner, "?? ??", lambda: self._step(1), width=100
+            bar_inner, "다음 문장", lambda: self._step(1), width=100
         ).pack(side="left", padx=8)
         self.tail_btn = self._make_bar_button(
-            bar_inner, "? ?? ??", self._fix_tail_clipping, width=120
+            bar_inner, "끝 잘림 보정", self._fix_tail_clipping, width=120
         )
         self.tail_btn.pack(side="left", padx=(18, 0))
         if self._tail_busy:
             self.tail_btn.configure(state="disabled")
 
         self.mode_var = tk.StringVar(
-            value="??: ??" if self.show_korean else "??: ???"
+            value="표시: 한영" if self.show_korean else "표시: 영어만"
         )
         ctk.CTkLabel(
             bar_inner,
@@ -1221,7 +1221,7 @@ class StudyApp(ctk.CTk):
             text_color=c["bar_fg"],
         ).pack(side="left", padx=18)
 
-        self.status_var = tk.StringVar(value="???")
+        self.status_var = tk.StringVar(value="준비됨")
         ctk.CTkLabel(
             bar_inner,
             textvariable=self.status_var,
@@ -1231,7 +1231,7 @@ class StudyApp(ctk.CTk):
         ).pack(side="right", padx=(12, 0))
 
         if self._player_error:
-            self.status_var.set("??? ?? ??")
+            self.status_var.set("오디오 재생 불가")
             self.play_btn.configure(state="disabled")
 
         body = ctk.CTkFrame(self, fg_color="transparent")
@@ -1272,14 +1272,14 @@ class StudyApp(ctk.CTk):
         list_head.pack(fill="x", padx=18, pady=(16, 8))
         ctk.CTkLabel(
             list_head,
-            text="?? ??",
+            text="문장 목록",
             font=(family, 13, "bold"),
             text_color=c["text"],
             anchor="w",
         ).pack(side="left")
         ctk.CTkLabel(
             list_head,
-            text="SPACE  ??",
+            text="SPACE  재생",
             font=(family, 9, "bold"),
             fg_color=c["panel_alt"],
             corner_radius=7,
@@ -1305,12 +1305,12 @@ class StudyApp(ctk.CTk):
         view = ctk.CTkFrame(right, fg_color="transparent")
         view.pack(fill="both", expand=True, padx=30, pady=(22, 18))
 
-        self.info_var = tk.StringVar(value="??? ?????")
+        self.info_var = tk.StringVar(value="문장을 선택하세요")
         info_row = ctk.CTkFrame(view, fg_color="transparent")
         info_row.pack(fill="x")
         self.edit_btn = ctk.CTkButton(
             info_row,
-            text="??",
+            text="수정",
             command=self._edit_cue,
             width=72,
             height=32,
@@ -1348,8 +1348,8 @@ class StudyApp(ctk.CTk):
         self.hint_label = ctk.CTkLabel(
             view,
             text=(
-                "Space: ??/??   ?   Enter: ?? ??\n"
-                "j/k: ?/?? ?? + ??   ?   Esc: ??   ?   Ctrl+D: ??"
+                "Space: 재생/정지   ·   Enter: 한영 전환\n"
+                "j/k: 위/아래 이동 + 재생   ·   Esc: 정지   ·   Ctrl+D: 테마"
             ),
             font=self.font_small,
             text_color=c["hint"],
@@ -1365,7 +1365,7 @@ class StudyApp(ctk.CTk):
 
     @staticmethod
     def _text_inner(widget: tk.Misc) -> tk.Text:
-        """CTkTextbox ??? ?? tk.Text? ?????."""
+        """CTkTextbox 안쪽의 실제 tk.Text를 돌려줍니다."""
 
         return getattr(widget, "_textbox", widget)
 
@@ -1380,7 +1380,7 @@ class StudyApp(ctk.CTk):
     def _make_display_text(
         self, parent: tk.Misc, *, font: tuple, fg: str
     ) -> ctk.CTkTextbox:
-        """??/??? ??? ?? ??? ?? ?? ?? ?? ??."""
+        """영어/한국어 본문을 읽기 전용으로 표시하는 텍스트 상자."""
 
         c = self.theme
         widget = ctk.CTkTextbox(
@@ -1419,10 +1419,10 @@ class StudyApp(ctk.CTk):
             bd=0,
         )
         menu.add_command(
-            label="??", command=lambda: inner.event_generate("<<Copy>>")
+            label="복사", command=lambda: inner.event_generate("<<Copy>>")
         )
         menu.add_command(
-            label="?? ??",
+            label="모두 선택",
             command=lambda: inner.tag_add("sel", "1.0", "end-1c"),
         )
         inner.bind(
