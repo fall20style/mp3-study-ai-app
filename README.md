@@ -144,7 +144,7 @@ Windows에서는 `.venv`의 Python으로 실행해 주는 `run_gui.cmd`를 사�
 다크 테마로 바로 시작하려면:
 
 ```powershell
-python gui.py --theme dark
+.\run_gui.cmd --theme dark
 ```
 
 <details>
@@ -476,7 +476,10 @@ data/project/<이름>/        # 음원 + 자막 + 캐시 + project.json
 
 ## 데모
 
-20초짜리 실제 사용 흐름입니다. 문장 이동(`j`/`k`), 재생(`Space`),
-한/영 전환(`Enter`), 라이트/다크 전환(`Ctrl+D`)을 순서대로 보여 줍니다.
+약 12초짜리 실제 사용 흐름입니다. 다음/이전 문장 이동과 재생(`j`/`k`),
+정지(`Space`/`Esc`), 한/영 전환(`Enter`), 라이트/다크 전환(`Ctrl+D`)을
+순서대로 보여 줍니다.
 
 ![GUI 사용 데모](docs/demo.gif)
+
+[동영상(mp4)으로 보기](docs/demo.mp4)
