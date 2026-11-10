@@ -10,7 +10,7 @@ NVIDIA GPU(CUDA)와 **Intel Arc GPU**를 자동 감지해 사용하고, GPU가 �
 XPU도 함께 지원합니다. `ffmpeg`는 `imageio-ffmpeg`에 포함된 바이너리를 쓰므로
 따로 설치할 필요가 없습니다.
 
-![학습 GUI 화면](docs/screenshot.png)
+![학습 GUI 화면](docs/screenshot.png?v=2)
 
 ## 기능
 
@@ -150,7 +150,7 @@ Windows에서는 `.venv`의 Python으로 실행해 주는 `run_gui.cmd`를 사�
 <details>
 <summary>다크 테마 미리보기</summary>
 
-![다크 테마](docs/screenshot-dark.png)
+![다크 테마](docs/screenshot-dark.png?v=2)
 
 </details>
 
@@ -480,6 +480,6 @@ data/project/<이름>/        # 음원 + 자막 + 캐시 + project.json
 정지(`Space`/`Esc`), 한/영 전환(`Enter`), 라이트/다크 전환(`Ctrl+D`)을
 순서대로 보여 줍니다.
 
-![GUI 사용 데모](docs/demo.gif)
+![GUI 사용 데모](docs/demo.gif?v=2)
 
 [동영상(mp4)으로 보기](docs/demo.mp4)
